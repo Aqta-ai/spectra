@@ -1,0 +1,7 @@
+backend/
+extension/
+infra/
+docs/
+*.sh
+docker-compose.yml
+.hypothesis/

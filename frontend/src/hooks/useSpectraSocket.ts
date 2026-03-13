@@ -1,0 +1,426 @@
+"use client";
+
+import { useRef, useCallback, useState } from "react";
+
+interface SpectraSocketOptions {
+  onText: (text: string) => void;
+  onTranscript: (text: string) => void;
+  onAudio: (base64Data: string) => void;
+  onAction: (action: string, params: Record<string, unknown>) => Promise<string>;
+  onActionStart?: (action: string, params: Record<string, unknown>) => void;
+  onActionComplete?: (action: string, result: string) => void;
+  onTurnComplete?: () => void;
+  onConnect: () => void;
+  onDisconnect: () => void;
+  onReconnecting?: (attempt: number) => void;
+  onGeminiReconnecting?: () => void;
+  onUsageLimit?: (info: { tier: string; used: number; limit: number }) => void;
+  onGoAway?: (timeLeft: number) => void;
+  audioDuckingEnabled?: boolean; // Enable audio ducking for screen reader compatibility
+  audioDuckingLevel?: number; // Volume reduction level (0-1, default 0.5)
+}
+
+const RECONNECT_BASE_DELAY = 500;   // Faster reconnection
+const RECONNECT_MAX_DELAY = 8000;   // Reduced max delay
+const MAX_RECONNECT_ATTEMPTS = 15;  // More attempts for reliability
+
+export function useSpectraSocket(options: SpectraSocketOptions) {
+  const wsRef = useRef<WebSocket | null>(null);
+  const optionsRef = useRef(options);
+  const reconnectAttemptRef = useRef(0);
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const intentionalCloseRef = useRef(false);
+  const [connectionQuality, setConnectionQuality] = useState<"good" | "degraded" | "poor">("good");
+  const [isConnected, setIsConnected] = useState(false);
+  const lastPongRef = useRef(0);
+  const messageQueueRef = useRef<string[]>([]);
+  const sessionIdRef = useRef<string>("");  // Persistent session ID for this tab
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const gainNodeRef = useRef<GainNode | null>(null);
+  const screenReaderActiveRef = useRef(false);
+  const cleanupMonitorRef = useRef<(() => void) | null>(null);
+  optionsRef.current = options;
+
+  /** Generate or retrieve persistent session ID for this browser tab */
+  const getSessionId = useCallback((): string => {
+    if (sessionIdRef.current) return sessionIdRef.current;
+    
+    // Try to get from sessionStorage (persists for tab lifetime)
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      const stored = sessionStorage.getItem('spectra_session_id');
+      if (stored) {
+        sessionIdRef.current = stored;
+        return stored;
+      }
+    }
+    
+    // Generate cryptographically secure session ID
+    const array = new Uint8Array(8);
+    crypto.getRandomValues(array);
+    const newId = `s-${Array.from(array).map(b => b.toString(16).padStart(2, '0')).join('')}`;
+    sessionIdRef.current = newId;
+
+    // Store in sessionStorage
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      sessionStorage.setItem('spectra_session_id', newId);
+    }
+
+    return newId;
+  }, []);
+
+  /** Initialize audio context and gain node for audio ducking */
+  const initializeAudioDucking = useCallback(() => {
+    if (!options.audioDuckingEnabled) return;
+    
+    try {
+      if (typeof window !== 'undefined' && !audioContextRef.current) {
+        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+        audioContextRef.current = new AudioContextClass();
+        gainNodeRef.current = audioContextRef.current.createGain();
+        gainNodeRef.current.connect(audioContextRef.current.destination);
+        gainNodeRef.current.gain.value = 1.0; // Full volume by default
+      }
+    } catch (error) {
+      console.error('[SpectraSocket] Failed to initialize audio ducking:', error);
+    }
+  }, [options.audioDuckingEnabled]);
+
+  /** Detect if screen reader is active (heuristic-based) */
+  const detectScreenReader = useCallback(() => {
+    if (typeof window === 'undefined') return false;
+    
+    // Check for common screen reader indicators
+    const hasAriaLive = document.querySelectorAll('[aria-live]').length > 0;
+    const hasScreenReaderText = document.querySelectorAll('.sr-only, .visually-hidden').length > 0;
+    const hasAriaLabel = document.querySelectorAll('[aria-label]').length > 10;
+    
+    // Check for screen reader-specific user agent strings
+    const userAgent = navigator.userAgent.toLowerCase();
+    const hasScreenReaderUA = userAgent.includes('nvda') || 
+                               userAgent.includes('jaws') || 
+                               userAgent.includes('voiceover');
+    
+    return hasAriaLive || hasScreenReaderText || hasAriaLabel || hasScreenReaderUA;
+  }, []);
+
+  /** Apply audio ducking when screen reader is detected */
+  const applyAudioDucking = useCallback((duck: boolean) => {
+    if (!options.audioDuckingEnabled || !gainNodeRef.current) return;
+    
+    const duckingLevel = options.audioDuckingLevel ?? 0.5;
+    const targetVolume = duck ? duckingLevel : 1.0;
+    const currentTime = audioContextRef.current?.currentTime ?? 0;
+    
+    // Smooth volume transition over 100ms
+    gainNodeRef.current.gain.cancelScheduledValues(currentTime);
+    gainNodeRef.current.gain.setValueAtTime(gainNodeRef.current.gain.value, currentTime);
+    gainNodeRef.current.gain.linearRampToValueAtTime(targetVolume, currentTime + 0.1);
+    
+    screenReaderActiveRef.current = duck;
+  }, [options.audioDuckingEnabled, options.audioDuckingLevel]);
+
+  /** Monitor for screen reader activity */
+  const monitorScreenReaderActivity = useCallback(() => {
+    if (!options.audioDuckingEnabled || typeof window === 'undefined') return;
+    
+    // Initial detection
+    const isActive = detectScreenReader();
+    if (isActive !== screenReaderActiveRef.current) {
+      applyAudioDucking(isActive);
+    }
+    
+    // Monitor only ARIA live regions , observing document.body is too expensive
+    const liveRegions = Array.from(document.querySelectorAll('[aria-live]'));
+    if (liveRegions.length === 0) return;
+
+    let duckTimer: ReturnType<typeof setTimeout> | null = null;
+    const observer = new MutationObserver(() => {
+      // Any mutation inside an aria-live region means screen reader is speaking
+      applyAudioDucking(true);
+      if (duckTimer) clearTimeout(duckTimer);
+      duckTimer = setTimeout(() => applyAudioDucking(false), 2000);
+    });
+
+    for (const region of liveRegions) {
+      observer.observe(region, { childList: true, subtree: true, characterData: true });
+    }
+
+    return () => {
+      observer.disconnect();
+      if (duckTimer) clearTimeout(duckTimer);
+    };
+  }, [options.audioDuckingEnabled, detectScreenReader, applyAudioDucking]);
+
+  const getWsUrl = useCallback(() => {
+    const base = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8080/ws";
+    
+    // Get persistent session ID for this browser tab
+    const sessionId = getSessionId();
+    
+    const params = new URLSearchParams();
+    params.append("session_id", sessionId);
+    
+    return `${base}?${params.toString()}`;
+  }, [getSessionId]);
+
+  const flushQueue = useCallback((ws: WebSocket) => {
+    while (messageQueueRef.current.length > 0 && ws.readyState === WebSocket.OPEN) {
+      const msg = messageQueueRef.current.shift();
+      if (msg) {
+        ws.send(msg);
+      }
+    }
+  }, []);
+
+  const scheduleReconnect = useCallback(() => {
+    if (intentionalCloseRef.current) return;
+
+    // Stop reconnecting after max attempts
+    if (reconnectAttemptRef.current >= MAX_RECONNECT_ATTEMPTS) {
+      console.error("[SpectraSocket] Max reconnection attempts reached");
+      optionsRef.current.onDisconnect();
+      return;
+    }
+
+    const delay = Math.min(
+      RECONNECT_BASE_DELAY * Math.pow(2, reconnectAttemptRef.current),
+      RECONNECT_MAX_DELAY
+    );
+    reconnectAttemptRef.current++;
+    optionsRef.current.onReconnecting?.(reconnectAttemptRef.current);
+
+    reconnectTimerRef.current = setTimeout(() => {
+      connectInternal();
+    }, delay);
+  }, []);
+
+  /**
+   * Shared message handler , single source of truth for both connectInternal and connect.
+   * Safe JSON.parse: malformed backend messages no longer crash the session.
+   * Declared after scheduleReconnect to avoid forward-reference errors.
+   */
+  const handleMessage = useCallback((ws: WebSocket) => async (event: MessageEvent) => {
+    let msg: Record<string, unknown>;
+    try {
+      msg = JSON.parse(event.data as string);
+    } catch {
+      console.warn('[SpectraSocket] Received non-JSON message, ignoring');
+      return;
+    }
+
+    switch (msg.type) {
+      case "text":
+        optionsRef.current.onText(msg.data as string);
+        break;
+      case "transcript":
+        optionsRef.current.onTranscript(msg.data as string);
+        break;
+      case "audio":
+        optionsRef.current.onAudio(msg.data as string);
+        break;
+      case "action": {
+        const actionName = msg.action as string;
+        const actionParams = (msg.params as Record<string, unknown>) ?? {};
+        optionsRef.current.onActionStart?.(actionName, actionParams);
+        const result = await optionsRef.current.onAction(actionName, actionParams);
+        optionsRef.current.onActionComplete?.(actionName, result);
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: "action_result", result, id: msg.id }));
+        }
+        break;
+      }
+      case "heartbeat": {
+        lastPongRef.current = Date.now();
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: "pong" }));
+        }
+        setConnectionQuality((msg.uptime as number) > 0 ? "good" : "degraded");
+        break;
+      }
+      case "turn_complete":
+        optionsRef.current.onTurnComplete?.();
+        break;
+      case "usage_limit":
+        optionsRef.current.onUsageLimit?.({
+          tier: (msg.tier as string) ?? "free",
+          used: (msg.used as number) ?? 0,
+          limit: (msg.limit as number) ?? 0,
+        });
+        break;
+      case "go_away":
+        optionsRef.current.onGoAway?.((msg.time_left as number) ?? 0);
+        setTimeout(() => {
+          if (!intentionalCloseRef.current) scheduleReconnect();
+        }, ((msg.time_left as number) ?? 5) * 1000);
+        break;
+      case "gemini_reconnecting":
+        // Backend is transparently reconnecting to Gemini (session limit hit).
+        // The browser WebSocket stays open , this is NOT a connection failure.
+        optionsRef.current.onGeminiReconnecting?.();
+        break;
+      // Silently ignore status/tool_status , internal backend telemetry
+    }
+  }, [scheduleReconnect]);
+
+  const connectInternal = useCallback(() => {
+    const url = getWsUrl();
+    const ws = new WebSocket(url);
+
+    ws.onopen = () => {
+      wsRef.current = ws;
+      reconnectAttemptRef.current = 0;
+      setConnectionQuality("good");
+      setIsConnected(true);
+      lastPongRef.current = Date.now();
+      optionsRef.current.onConnect();
+      flushQueue(ws);
+    };
+
+    ws.onerror = () => {
+      // Error handling is done in onclose
+    };
+
+    ws.onclose = (event) => {
+      wsRef.current = null;
+      setIsConnected(false);
+      if (!intentionalCloseRef.current && event.code !== 1000) {
+        scheduleReconnect();
+      } else {
+        optionsRef.current.onDisconnect();
+      }
+    };
+
+    ws.onmessage = handleMessage(ws);
+  }, [flushQueue, scheduleReconnect, getWsUrl]);
+
+  const connect = useCallback(() => {
+    return new Promise<void>((resolve, reject) => {
+      intentionalCloseRef.current = false;
+      reconnectAttemptRef.current = 0;
+
+      // Initialize audio ducking
+      initializeAudioDucking();
+      
+      // Start monitoring screen reader activity
+      cleanupMonitorRef.current?.(); // clean up any previous observer
+      cleanupMonitorRef.current = monitorScreenReaderActivity() ?? null;
+
+      // Connect directly without token
+      const url = getWsUrl();
+      const ws = new WebSocket(url);
+
+      const timeout = setTimeout(() => {
+        ws.close();
+        reject(new Error("Connection timeout"));
+      }, 25000);
+
+      ws.onopen = () => {
+        clearTimeout(timeout);
+        wsRef.current = ws;
+        reconnectAttemptRef.current = 0;
+        setConnectionQuality("good");
+        setIsConnected(true);
+        lastPongRef.current = Date.now();
+        optionsRef.current.onConnect();
+        flushQueue(ws);
+
+        // Re-wire for reconnection support
+        ws.onclose = (event) => {
+          wsRef.current = null;
+          setIsConnected(false);
+          if (!intentionalCloseRef.current && event.code !== 1000) {
+            scheduleReconnect();
+          } else {
+            optionsRef.current.onDisconnect();
+          }
+        };
+
+        // Use the shared safe handler , no more duplicate 40-line switch blocks
+        ws.onmessage = handleMessage(ws);
+
+        resolve();
+      };
+
+      ws.onerror = () => {
+        clearTimeout(timeout);
+        reject(new Error("WebSocket connection failed"));
+      };
+    });
+  }, [flushQueue, scheduleReconnect, getWsUrl, handleMessage, initializeAudioDucking, monitorScreenReaderActivity]);
+
+  const disconnect = useCallback(() => {
+    intentionalCloseRef.current = true;
+    if (reconnectTimerRef.current) {
+      clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+    }
+    wsRef.current?.close(1000);
+    wsRef.current = null;
+    setIsConnected(false);
+    
+    // Cleanup screen reader monitor
+    cleanupMonitorRef.current?.();
+    cleanupMonitorRef.current = null;
+
+    // Cleanup audio context
+    if (audioContextRef.current) {
+      audioContextRef.current.close();
+      audioContextRef.current = null;
+      gainNodeRef.current = null;
+    }
+    
+    // NOTE: We intentionally DO NOT clear sessionIdRef.current here
+    // This allows reconnection to reuse the same session_id
+    console.log(`[SpectraSocket] Disconnected but preserving session_id: ${sessionIdRef.current}`);
+  }, []);
+
+  const safeSend = useCallback((data: string) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(data);
+    } else {
+      // Queue messages during reconnection (only keep last 10)
+      messageQueueRef.current.push(data);
+      if (messageQueueRef.current.length > 10) {
+        messageQueueRef.current.shift();
+      }
+    }
+  }, []);
+
+  const sendAudio = useCallback((base64Data: string) => {
+    // Audio is time-sensitive , don't queue, just drop if not connected
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: "audio", data: base64Data }));
+    }
+  }, []);
+
+  const sendScreenshot = useCallback((base64Data: string, width?: number, height?: number) => {
+    // Queue screenshots so they're sent when connection is restored
+    const msg = JSON.stringify({
+      type: "screenshot",
+      data: base64Data,
+      width: width ?? 0,
+      height: height ?? 0,
+    });
+    // Hot path , no logging here
+    safeSend(msg);
+  }, [safeSend]);
+
+  const sendText = useCallback((text: string) => {
+    safeSend(JSON.stringify({ type: "text", data: text }));
+  }, [safeSend]);
+
+  const sendCancel = useCallback(() => {
+    safeSend(JSON.stringify({ type: "cancel" }));
+  }, [safeSend]);
+
+  return {
+    connect,
+    disconnect,
+    sendAudio,
+    sendFrame: sendScreenshot,
+    sendText,
+    sendCancel,
+    isConnected,
+    connectionQuality,
+  };
+}

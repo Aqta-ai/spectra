@@ -1,0 +1,52 @@
+<svg width="512" height="512" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="irisGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#A29BFE"/>
+      <stop offset="60%" stop-color="#6C5CE7"/>
+      <stop offset="100%" stop-color="#4834D4"/>
+    </radialGradient>
+    <radialGradient id="glowRing" cx="50%" cy="50%" r="50%">
+      <stop offset="70%" stop-color="#6C5CE7" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#6C5CE7" stop-opacity="0.35"/>
+    </radialGradient>
+    <linearGradient id="spectrumGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%"   stop-color="#FF6B9D" stop-opacity="0.9"/>
+      <stop offset="25%"  stop-color="#A29BFE" stop-opacity="0.9"/>
+      <stop offset="50%"  stop-color="#6C5CE7" stop-opacity="0.9"/>
+      <stop offset="75%"  stop-color="#00CEC9" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#55EFC4" stop-opacity="0.9"/>
+    </linearGradient>
+    <clipPath id="eyeClip">
+      <ellipse cx="20" cy="20" rx="17" ry="10"/>
+    </clipPath>
+  </defs>
+  <!-- Background -->
+  <rect width="40" height="40" rx="10" fill="#0F0E17"/>
+  <!-- Outer ambient glow -->
+  <ellipse cx="20" cy="20" rx="19" ry="12" fill="url(#glowRing)"/>
+  <!-- Eye whites -->
+  <ellipse cx="20" cy="20" rx="17" ry="10" fill="#0F0E17" stroke="#6C5CE7" stroke-width="1.2"/>
+  <!-- Spectrum band -->
+  <rect x="3" y="17" width="34" height="6" fill="url(#spectrumGrad)" clip-path="url(#eyeClip)" opacity="0.25"/>
+  <!-- Voice waveform — subtle sine running through the band, either side of iris -->
+  <path d="M4 20 Q5.5 18 7 20 Q8.5 22 10 20 Q11.5 18 13 20" stroke="white" stroke-width="0.5" fill="none" opacity="0.35" clip-path="url(#eyeClip)"/>
+  <path d="M27 20 Q28.5 18 30 20 Q31.5 22 33 20 Q34.5 18 36 20" stroke="white" stroke-width="0.5" fill="none" opacity="0.35" clip-path="url(#eyeClip)"/>
+  <!-- Waveform in band — subtle voice hint, clipped to eye shape -->
+  <path d="M5 20 Q7 18.2 9 20 Q11 21.8 13 20 Q14.5 18.5 16 20 Q17 21.2 18 20 Q19 18.8 20 20 Q21 21.2 22 20 Q23 18.8 24 20 Q25.5 21.5 27 20 Q29 18.2 31 20 Q33 21.8 35 20"
+    stroke="white" stroke-width="0.55" fill="none" opacity="0.45" clip-path="url(#eyeClip)"/>
+  <!-- Iris -->
+  <circle cx="20" cy="20" r="7.5" fill="url(#irisGrad)"/>
+  <circle cx="20" cy="20" r="7.5" stroke="#A29BFE" stroke-width="0.6" fill="none" opacity="0.5"/>
+  <!-- Pupil -->
+  <circle cx="20" cy="20" r="3.5" fill="#0F0E17"/>
+  <circle cx="20" cy="20" r="1.2" fill="#6C5CE7" opacity="0.8"/>
+  <!-- Catchlights -->
+  <circle cx="17.2" cy="17.5" r="1.4" fill="white" opacity="0.75"/>
+  <circle cx="22.5" cy="22" r="0.6" fill="white" opacity="0.35"/>
+  <!-- Eyelid curves -->
+  <path d="M3 20 Q20 8 37 20" stroke="#A29BFE" stroke-width="0.8" fill="none" opacity="0.4"/>
+  <path d="M3 20 Q20 32 37 20" stroke="#6C5CE7" stroke-width="0.8" fill="none" opacity="0.3"/>
+  <!-- Corner dots -->
+  <circle cx="3.5" cy="20" r="1" fill="#6C5CE7" opacity="0.6"/>
+  <circle cx="36.5" cy="20" r="1" fill="#6C5CE7" opacity="0.6"/>
+</svg>

@@ -1,0 +1,20 @@
+{
+  "name": "Spectra — See it. Hear it. Control it.",
+  "short_name": "Spectra",
+  "description": "AI that sees your screen, speaks what matters, and acts on your command.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#6C5CE7",
+  "orientation": "any",
+  "categories": ["accessibility", "productivity", "utilities"],
+  "lang": "en-GB",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

@@ -1,0 +1,87 @@
+# Environment & secrets (do not publish)
+.env
+.env.local
+.env.*.local
+*.env
+backend/.env
+frontend/.env.local
+
+# Private keys & credentials (do not publish)
+*.pem
+*.key
+*.p12
+*.pfx
+credentials.json
+*-credentials*.json
+*service*account*.json
+*service-account*.json
+
+# Local / IDE (optional — keep local config off public repo)
+.cursor/
+
+# Local extensions
+pro/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+
+# Node
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+backend/logs/
+
+# Terraform
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.backup
+*.tfstate.*.backup
+*.tfvars
+!*.tfvars.example
+
+# Lighthouse reports
+lighthouse-*.json
+lighthouse-*.html
+
+# Scripts (local-only marketing/demo tools)
+scripts/
+
+# Spectra session memory (runtime state — not for public repo)
+backend/.spectra/
+
+# Spectra Overlay (local-only prototype — not for public repo)
+frontend/src/app/overlay/
+backend/app/overlay.py
+
+# Accessibility research (internal use only — contains participant data)
+backend/accessibility_testing/
+
+# Trace/telemetry data
+infra/spectra_traces.jsonl
+*.jsonl
+
+# Keep: README.md, LICENSE, CONTRIBUTING.md
+

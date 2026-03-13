@@ -1,0 +1,221 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --spectra-primary:   #6C5CE7;
+  --spectra-secondary: #A29BFE;
+  --spectra-bg:        #0f172a;
+  --spectra-dark:      #0F0E17;
+  --spectra-surface:   #1e293b;
+  --spectra-text:      #f8fafc;
+  --spectra-muted:     #94A1B2;
+  /* Glow colours reused in box-shadows */
+  --glow-purple: rgba(108, 92, 231, 0.45);
+  --glow-violet: rgba(162, 155, 254, 0.35);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--spectra-bg);
+  /* Subtle purple radial glow in top-centre and bottom-right */
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(108, 92, 231, 0.10), transparent),
+    radial-gradient(ellipse 60% 40% at 80% 110%, rgba(162, 155, 254, 0.05), transparent);
+  color: var(--spectra-text);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  overflow-y: scroll;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* High-contrast focus ring , WCAG 2.1 AA compliant, clearly visible on dark bg */
+*:focus-visible {
+  outline: 3px solid #facc15;
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* ── Spectra Orb , the central animated voice indicator ─────────────────── */
+
+/* Idle: slow breathe */
+.spectra-orb {
+  position: relative;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 35% 35%,
+    var(--spectra-secondary),
+    var(--spectra-primary) 60%,
+    #3b28cc
+  );
+  box-shadow:
+    0 0 40px 8px var(--glow-purple),
+    0 0 80px 20px rgba(108, 92, 231, 0.15);
+  transition: box-shadow 0.4s ease, transform 0.4s ease;
+}
+
+/* Listening: brighter ring */
+.spectra-orb-listening {
+  background: radial-gradient(
+    circle at 35% 35%,
+    #c8f787,
+    #4ade80 50%,
+    #16a34a
+  );
+  box-shadow:
+    0 0 40px 12px rgba(74, 222, 128, 0.5),
+    0 0 80px 24px rgba(74, 222, 128, 0.2);
+}
+
+/* Speaking: violet glow */
+.spectra-orb-speaking {
+  background: radial-gradient(
+    circle at 35% 35%,
+    var(--spectra-secondary),
+    var(--spectra-primary) 50%,
+    #7c3aed
+  );
+  box-shadow:
+    0 0 50px 16px var(--glow-purple),
+    0 0 100px 32px rgba(108, 92, 231, 0.2);
+}
+
+/* ── Waveform bars ───────────────────────────────────────────────────────── */
+
+.waveform-bar {
+  width: 3px;
+  border-radius: 9999px;
+  background: currentColor;
+  transform-origin: bottom center;
+}
+
+/* ── Glassmorphism card ──────────────────────────────────────────────────── */
+
+.glass {
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-dark {
+  background: rgba(15, 14, 23, 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* Smooth transitions for interactive elements */
+button,
+a,
+input,
+select,
+textarea {
+  transition: background-color 0.15s ease, border-color 0.15s ease,
+    box-shadow 0.15s ease, opacity 0.15s ease;
+}
+
+/* Better scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(108, 92, 231, 0.3);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(108, 92, 231, 0.5);
+}
+
+/* ── Subtle dot-grid for main hero area ─────────────────────────────────── */
+
+.hero-mesh {
+  background-image: radial-gradient(circle, rgba(108, 92, 231, 0.12) 1px, transparent 1px);
+  background-size: 28px 28px;
+  background-position: center center;
+  mask-image: radial-gradient(ellipse 70% 80% at 50% 50%, black 30%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse 70% 80% at 50% 50%, black 30%, transparent 100%);
+}
+
+/* ── CTA glow animation for Connect button ───────────────────────────────── */
+
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 20px 4px rgba(108, 92, 231, 0.35), 0 4px 24px rgba(108, 92, 231, 0.2); }
+  50%       { box-shadow: 0 0 32px 8px rgba(108, 92, 231, 0.55), 0 4px 32px rgba(108, 92, 231, 0.3); }
+}
+
+.cta-glow {
+  animation: glow-pulse 2.5s ease-in-out infinite;
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Responsive utilities */
+@media (max-width: 640px) {
+  body {
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  body {
+    font-size: 13px;
+  }
+}
+
+/* PWA standalone mode , account for safe areas on notched devices */
+@supports (padding: env(safe-area-inset-top)) {
+  body {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+}
+
+/* Ensure touch targets are at least 44px for accessibility */
+@media (pointer: coarse) {
+  button,
+  a,
+  input,
+  select,
+  textarea,
+  [role="button"] {
+    min-height: 44px;
+  }
+}
+
+/* Prevent pull-to-refresh in PWA standalone mode */
+@media (display-mode: standalone) {
+  body {
+    overscroll-behavior-y: contain;
+  }
+}

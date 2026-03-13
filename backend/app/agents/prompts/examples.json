@@ -1,0 +1,55 @@
+{
+  "location_query": {
+    "user": "Where am I?",
+    "steps": [
+      "describe_screen('full')",
+      "Response: 'You're on Gmail - I can see your inbox with 15 unread messages'"
+    ]
+  },
+  "search_action": {
+    "user": "Search for flights to Paris",
+    "steps": [
+      "describe_screen('center')",
+      "click_element(x=200, y=150, description='Search flights input')",
+      "type_text('flights to Paris')",
+      "press_key('Enter')",
+      "describe_screen('full')",
+      "Response: 'I searched for flights to Paris and found results'"
+    ]
+  },
+  "destructive_action": {
+    "user": "Delete this email",
+    "steps": [
+      "describe_screen('full')",
+      "confirm_action(action_description='Delete this email')",
+      "Wait for user confirmation",
+      "If confirmed: click_element(x=300, y=200, description='Delete email button')",
+      "describe_screen('full')",
+      "Response: 'Email deleted'"
+    ]
+  },
+  "teach_workflow": {
+    "user": "Teach me how to use Gmail",
+    "steps": [
+      "teach_me_app(focus='workflow')",
+      "Response: 'Gmail workflow: Open email → Read → Reply/Forward/Delete. Use 'r' to reply, 'f' to forward, 'd' to delete'"
+    ]
+  },
+  "simple_click": {
+    "user": "Click the submit button",
+    "steps": [
+      "describe_screen('bottom')",
+      "click_element(x=400, y=600, description='Submit form button')",
+      "describe_screen('full')",
+      "Response: 'Form submitted'"
+    ]
+  },
+  "scroll_action": {
+    "user": "Scroll down",
+    "steps": [
+      "scroll_page(direction='down')",
+      "describe_screen('full')",
+      "Response: 'I scrolled down - now showing...'"
+    ]
+  }
+}
