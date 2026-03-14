@@ -63,13 +63,15 @@ jobs:
         with:
           project_id: ${{ env.PROJECT_ID }}
 
+      - name: Configure Docker for GCR
+        run: gcloud auth configure-docker gcr.io --quiet
+
       - name: Build & push backend image
         working-directory: backend
         run: |
-          gcloud builds submit \
-            --tag "gcr.io/${{ env.PROJECT_ID }}/spectra-backend:${{ github.sha }}" \
-            --project "${{ env.PROJECT_ID }}" \
-            --quiet
+          IMAGE="gcr.io/${{ env.PROJECT_ID }}/spectra-backend:${{ github.sha }}"
+          docker build -t "$IMAGE" .
+          docker push "$IMAGE"
 
       - name: Deploy backend to Cloud Run
         id: deploy
@@ -119,6 +121,9 @@ jobs:
         with:
           project_id: ${{ env.PROJECT_ID }}
 
+      - name: Configure Docker for GCR
+        run: gcloud auth configure-docker gcr.io --quiet
+
       # NEXT_PUBLIC_* vars must be baked in at build time — runtime env vars
       # arrive too late for Next.js static bundles. We derive the WS URL from
       # the backend URL output by the previous job.
@@ -129,14 +134,13 @@ jobs:
           WS_URL="${BACKEND_URL/https:\/\//wss://}/ws"
           echo "url=${WS_URL}" >> "$GITHUB_OUTPUT"
 
-      - name: Build frontend image (WS URL baked in)
+      - name: Build & push frontend image (WS URL baked in)
         run: |
           IMAGE="gcr.io/${{ env.PROJECT_ID }}/spectra-frontend:${{ github.sha }}"
-          gcloud builds submit ./frontend \
-            --project "${{ env.PROJECT_ID }}" \
-            --config frontend/cloudbuild.yaml \
-            --substitutions "_NEXT_PUBLIC_WS_URL=${{ steps.ws.outputs.url }},_IMAGE=${IMAGE}" \
-            --quiet
+          docker build ./frontend \
+            --build-arg NEXT_PUBLIC_WS_URL="${{ steps.ws.outputs.url }}" \
+            -t "$IMAGE"
+          docker push "$IMAGE"
 
       - name: Deploy frontend to Cloud Run
         id: deploy
@@ -155,7 +159,7 @@ jobs:
 
       - name: Summary
         run: |
-          echo "## Spectra Deployed 🔮" >> $GITHUB_STEP_SUMMARY
+          echo "## Spectra Deployed" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Service  | URL |" >> $GITHUB_STEP_SUMMARY
           echo "|----------|-----|" >> $GITHUB_STEP_SUMMARY
