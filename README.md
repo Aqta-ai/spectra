@@ -80,29 +80,33 @@ No reading. No staring. No typing. Just talk.
 
 ### Example Interaction
 
-This is a real end-to-end task a blind user would struggle with on any traditional screen reader:
+A blind user wants to catch up on the news and find out more about a story — entirely by voice:
 
 ```
-You: "Hey Spectra , check my Gmail and read me any unread emails from today."
+You: "Go to BBC News and read me the top headline."
 
-Spectra: "Navigating to Gmail now... You have three unread emails today.
-          The first is from Sarah at 9:14am, subject: 'Team lunch Thursday'.
-          She's asking if you can make it and suggests the Italian place on
-          Grafton Street. The second is from your bank , a transaction alert
-          for €42.50 at Tesco. The third is a GitHub notification."
+Spectra: "You're on BBC News. The top story is: 'Scientists confirm water ice
+          found beneath Mars south pole — enough to cover the planet in metres
+          of ocean.' Want me to open it?"
 
-You: "Reply to Sarah , tell her yes, Thursday works, see her at one."
+You: "Yes, open it."
 
-Spectra: "Opening Sarah's email... clicking Reply... typing your message now...
-          Done. I've typed 'Yes, Thursday works , see you at one!' Should I
-          send it?"
+Spectra: "Opening the article... You're reading: Scientists confirm water ice
+          found beneath Mars south pole. The piece starts: Researchers at the
+          European Space Agency have confirmed the largest deposit of water ice
+          ever detected on Mars, buried two kilometres below the surface near
+          the south pole. The discovery, published today in Nature, suggests
+          Mars once held a global ocean. Want me to keep reading?"
 
-You: "Send it."
+You: "Yes, keep going."
 
-Spectra: "Sent. Sarah will have your reply in a moment."
+Spectra: "The lead scientist, Dr Elena Pettinelli, said the finding 'changes
+          everything we thought we knew about Mars as a dead planet.' The ESA
+          plans a dedicated drilling mission for 2031. There are 47 comments
+          on the article. Want me to scroll down to them?"
 ```
 
-No mouse. No keyboard. No reading. A task that takes a sighted person 45 seconds, done by voice in under two minutes , on any website, without the site needing to support any accessibility standard.
+No mouse. No keyboard. No reading. A task that takes a sighted person 30 seconds, done entirely by voice — on any website, without the site needing to support any accessibility standard.
 
 ---
 
@@ -126,7 +130,7 @@ No mouse. No keyboard. No reading. A task that takes a sighted person 45 seconds
 
 Spectra has been optimised for speed and reliability:
 
-| Optimization | Before | After | Impact |
+| Optimisation | Before | After | Impact |
 |--------------|--------|-------|--------|
 | Frame cooldown | 0.04s | 0.02s | 50% faster |
 | Describe cache TTL | 8s | 3s | Fresher results |
@@ -181,7 +185,7 @@ Spectra's agent is optimised for speed and accuracy:
 - Sub-500ms voice-to-response latency
 
 ### Better Language Understanding
-- Optimized system instruction for concise responses
+- Optimised system instruction for concise responses
 - Clear action priority: describe → click → type → scroll → submit
 - British English phrasing for natural conversation
 - Decisive action without hesitation
