@@ -88,7 +88,15 @@ export function useAudioStream({ onAudioChunk }: AudioStreamOptions) {
     workletNode.port.onmessage = (e: MessageEvent<ArrayBuffer>) => {
       // Don't send audio while muted , prevents barge-in while Spectra is speaking
       if (mutedRef.current) {
-        return;
+        // Hard backstop: if muted for over 8s, something went wrong (Gemini died
+        // mid-turn without sending turn_complete). Force-unmute so the user isn't
+        // permanently deaf.
+        if (mutedAtRef.current && Date.now() - mutedAtRef.current > 8000) {
+          mutedRef.current = false;
+          mutedAtRef.current = null;
+        } else {
+          return;
+        }
       }
       onAudioChunkRef.current(encodeInt16ToBase64(e.data));
     };

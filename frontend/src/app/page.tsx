@@ -275,6 +275,7 @@ export default function Home() {
         unmuteMic();
       };
       // Safety: force-unmute after 2.5s even if audio never fires onended
+      // (8s hard backstop handles the case where Gemini dies without sending turn_complete)
       unmuteSafetyTimerRef.current = setTimeout(doUnmute, 2500);
       audioPlayerRef.current.notifyWhenDone(doUnmute);
 
@@ -325,6 +326,14 @@ export default function Home() {
       geminiReconnectTimerRef.current = setTimeout(() => {
         setStatusText(isActive ? "Listening..." : "Press Q to start");
       }, 3000);
+      // If Gemini dies mid-turn, turn_complete never arrives → mic stays muted forever.
+      // Force-unmute and stop stale audio so the user can speak again after reconnect.
+      if (unmuteSafetyTimerRef.current) {
+        clearTimeout(unmuteSafetyTimerRef.current);
+        unmuteSafetyTimerRef.current = null;
+      }
+      audioPlayerRef.current.stop();
+      unmuteMic();
     },
   });
 
