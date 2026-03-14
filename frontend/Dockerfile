@@ -11,6 +11,11 @@ RUN npm ci
 # Copy source code
 COPY . .
 
+# Accept WS URL at build time — NEXT_PUBLIC_* vars are baked into the bundle
+# during `next build`, so runtime Cloud Run env vars arrive too late.
+ARG NEXT_PUBLIC_WS_URL=ws://localhost:8080/ws
+ENV NEXT_PUBLIC_WS_URL=$NEXT_PUBLIC_WS_URL
+
 # Build Next.js app
 RUN npm run build
 

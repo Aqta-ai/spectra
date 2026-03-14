@@ -1,0 +1,91 @@
+graph LR
+    %% User Layer
+    User[👤 User<br/>🎤 Voice + 🔊 Audio + ⌨️ Keyboard<br/>Wake: Hey Spectra · Q/W/Esc]
+
+    %% Frontend Layer
+    subgraph Frontend["🌐 Frontend (Next.js + React)"]
+        VoiceAct[🎤 Voice Activation<br/>Web Speech API]
+        ScreenCap[📸 Screen Capture<br/>MediaStream API<br/>2fps JPEG @ 1280px]
+        ActionExec[⚡ Action Executor<br/>click/type/scroll/keys]
+        WSClient[🔌 WebSocket Client<br/>Audio + Control Messages]
+        AudioPlayer[🔊 Audio Player<br/>PCM Playback]
+    end
+
+    %% Extension Bridge
+    subgraph Extension["🔗 Spectra Bridge (Chrome Extension)"]
+        ContentJS[content.js<br/>Execute actions in target tab]
+        BackgroundJS[background.js<br/>Route messages between tabs]
+        ExtActions[🎯 Actions:<br/>click, type, scroll, key, navigate]
+    end
+
+    %% Backend Layer
+    subgraph Backend["⚙️ Backend (FastAPI on Cloud Run)"]
+        WSServer[🔌 WebSocket Server<br/>Client ↔ Gemini Bridge]
+        SessionMgr[📋 Session Manager<br/>SpectraStreamingSession]
+        ToolRouter[🛠️ Tool Router<br/>Server vs Client tools]
+        Personalization[👤 User Preferences<br/>Workflows & History]
+    end
+
+    %% Gemini Live API
+    subgraph GeminiAPI["🤖 Gemini Live API (Vertex AI)"]
+        LiveModel[gemini-2.5-flash-native-audio-latest]
+        AudioStream[🎵 Real-time Audio<br/>Aoede Voice + VAD]
+        VisionAnalysis[👁️ Vision Analysis<br/>Screenshot Understanding]
+        FunctionCalls[⚙️ Function Calling<br/>UI Action Tools]
+    end
+
+    %% Tool Categories
+    subgraph ServerTools["🖥️ Server-side Tools"]
+        DescribeScreen[describe_screen<br/>Analyze UI elements]
+        SaveSnapshot[save_snapshot<br/>Reference screenshots]
+        DiffScreen[diff_screen<br/>Compare changes]
+        TeachApp[teach_me_app<br/>Guided tours]
+    end
+
+    subgraph ClientTools["💻 Client-side Tools"]
+        ClickElement[click_element<br/>Click at coordinates]
+        TypeText[type_text<br/>Input text]
+        ScrollPage[scroll_page<br/>Navigate content]
+        PressKey[press_key<br/>Keyboard actions]
+        Navigate[navigate<br/>Go to URL]
+    end
+
+    %% Data Flow Connections
+    User -.->|Voice Input| VoiceAct
+    User -.->|Keyboard| ActionExec
+    VoiceAct -->|Wake Detection| WSClient
+    ScreenCap -->|JPEG Frames| WSClient
+    WSClient <-->|WebSocket| WSServer
+    AudioPlayer <-.->|Audio Output| User
+
+    WSServer <-->|Streaming| SessionMgr
+    SessionMgr <-->|bidiGenerateContent| LiveModel
+    SessionMgr --> ToolRouter
+    SessionMgr --> Personalization
+
+    ToolRouter -->|Server Tools| ServerTools
+    ToolRouter -->|Client Tools| WSClient
+    WSClient -->|postMessage| BackgroundJS
+    BackgroundJS -->|Route to Tab| ContentJS
+    ContentJS -->|Execute| ExtActions
+    ContentJS -.->|Results| BackgroundJS
+    BackgroundJS -.->|Results| WSClient
+
+    LiveModel --> AudioStream
+    LiveModel --> VisionAnalysis
+    LiveModel --> FunctionCalls
+
+    %% Styling
+    classDef userStyle fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    classDef frontendStyle fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef backendStyle fill:#e8f5e8,stroke:#1b5e20,stroke-width:2px
+    classDef geminiStyle fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef toolStyle fill:#fce4ec,stroke:#880e4f,stroke-width:2px
+    classDef extensionStyle fill:#e0f2f1,stroke:#004d40,stroke-width:2px
+
+    class User userStyle
+    class Frontend,VoiceAct,ScreenCap,ActionExec,WSClient,AudioPlayer frontendStyle
+    class Backend,WSServer,SessionMgr,ToolRouter,Personalization backendStyle
+    class GeminiAPI,LiveModel,AudioStream,VisionAnalysis,FunctionCalls geminiStyle
+    class ServerTools,ClientTools,DescribeScreen,SaveSnapshot,DiffScreen,TeachApp,ClickElement,TypeText,ScrollPage,PressKey,Navigate toolStyle
+    class Extension,ContentJS,BackgroundJS,ExtActions extensionStyle

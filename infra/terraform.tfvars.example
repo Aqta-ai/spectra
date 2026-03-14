@@ -1,0 +1,5 @@
+project_id     = "analog-sum-485815-j3"
+region         = "europe-west1"
+backend_image  = "europe-west1-docker.pkg.dev/analog-sum-485815-j3/cloud-run-source-deploy/spectra-backend:latest"
+frontend_image = "europe-west1-docker.pkg.dev/analog-sum-485815-j3/cloud-run-source-deploy/spectra-frontend:latest"
+frontend_domain = "spectra-frontend-xxxx-ew.a.run.app"

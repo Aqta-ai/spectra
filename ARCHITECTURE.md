@@ -32,7 +32,7 @@ graph TB
         WSServer[🔌 WebSocket Server<br/>Client ↔ Gemini Bridge]
         SessionMgr[📋 Session Manager<br/>SpectraStreamingSession]
         ToolRouter[🛠️ Tool Router<br/>Server vs Client tools]
-        Personalization[👤 User Preferences<br/>Workflows & History]
+        Personalisation[👤 User Preferences<br/>Workflows & History]
     end
 
     %% Gemini Live API

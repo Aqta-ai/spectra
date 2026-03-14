@@ -320,7 +320,7 @@ export default function Home() {
     onGeminiReconnecting: () => {
       // Gemini internally reconnected , the browser WebSocket is still alive.
       // Just show a transient status; never change connectionState.
-      setStatusText("AI reconnecting...");
+      setStatusText("Reconnecting...");
       if (geminiReconnectTimerRef.current) clearTimeout(geminiReconnectTimerRef.current);
       geminiReconnectTimerRef.current = setTimeout(() => {
         setStatusText(isActive ? "Listening..." : "Press Q to start");
@@ -443,11 +443,12 @@ export default function Home() {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       const key = e.key.toLowerCase();
-      if (key === "q") { e.preventDefault(); e.stopPropagation(); handleToggle(); }
-      else if (key === "w") { e.preventDefault(); e.stopPropagation(); handleShareScreen(); }
-      else if (key === "escape" && isActive) { e.preventDefault(); e.stopPropagation(); handleStop(); }
+      // Q and Esc are reserved shortcuts , work even when text input is focused
+      if (key === "q") { e.preventDefault(); e.stopPropagation(); handleToggle(); return; }
+      if (key === "escape" && isActive) { e.preventDefault(); e.stopPropagation(); handleStop(); return; }
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (key === "w") { e.preventDefault(); e.stopPropagation(); handleShareScreen(); }
     };
     document.addEventListener("keydown", handleKeyDown, true);
     return () => document.removeEventListener("keydown", handleKeyDown, true);
@@ -568,7 +569,7 @@ export default function Home() {
 
       {/* ── Main ───────────────────────────────────────────────────────────── */}
       <main className="flex-1 flex flex-col items-center px-4 sm:px-6 py-8 sm:py-12 relative">
-        {/* Dot-grid background — only in hero state */}
+        {/* Dot-grid background , only in hero state */}
         {!isActive && messages.length === 0 && (
           <div className="absolute inset-0 hero-mesh pointer-events-none" aria-hidden="true" />
         )}
@@ -576,17 +577,9 @@ export default function Home() {
           /* ── Idle hero ──────────────────────────────────────────────────── */
           <div className="flex flex-col items-center justify-center flex-1 text-center space-y-7 sm:space-y-9">
 
-            {/* Gemini badge */}
-            <div className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-spectra-primary/25 bg-spectra-primary/8 text-xs text-spectra-secondary/90 animate-fade-in" aria-hidden="true">
-              <svg className="w-3 h-3 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2L9 9H2L8 14L5.5 21L12 16.5L18.5 21L16 14L22 9H15L12 2Z"/>
-              </svg>
-              Powered by Gemini Live API
-            </div>
-
             {/* Orb + rings */}
             <div className="relative flex items-center justify-center">
-              {/* Outer glow ring — brightens when connected */}
+              {/* Outer glow ring , brightens when connected */}
               <div
                 className={`absolute rounded-full border transition-all duration-1000 pointer-events-none ${
                   connectionState === "connected" ? "border-spectra-primary/20 opacity-100" : "border-white/5 opacity-60"
@@ -633,7 +626,7 @@ export default function Home() {
               <button
                 onClick={handleStart}
                 className="flex items-center gap-2.5 px-10 py-3.5 bg-spectra-primary hover:bg-spectra-primary/85 active:scale-95 text-white font-semibold rounded-xl transition-all text-base shadow-lg shadow-spectra-primary/30"
-                aria-label="Start Spectra — tap to begin"
+                aria-label="Start Spectra , tap to begin"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4M12 3a4 4 0 014 4v4a4 4 0 01-8 0V7a4 4 0 014-4z" />

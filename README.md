@@ -7,97 +7,36 @@ Spectra is a real-time AI agent that understands your screen, highlights what ma
 
 **Built for accessibility. Designed for everyone.**
 
+[![Live App](https://img.shields.io/badge/LIVE_APP-spectra.aqta.ai-22c55e?style=for-the-badge)](https://spectra.aqta.ai)
+[![Demo Video](https://img.shields.io/badge/DEMO_VIDEO-YouTube-ff0000?style=for-the-badge&logo=youtube&logoColor=white)](#)
+[![Built With](https://img.shields.io/badge/BUILT_WITH-Gemini_Live_API-4285F4?style=for-the-badge&logo=google&logoColor=white)](https://ai.google.dev/gemini-api/docs/live)
+[![Google Cloud](https://img.shields.io/badge/GOOGLE_CLOUD-Cloud_Run-4285F4?style=for-the-badge&logo=googlecloud&logoColor=white)](https://cloud.google.com/run)
+[![Python](https://img.shields.io/badge/PYTHON-FastAPI-3B82F6?style=for-the-badge&logo=python&logoColor=white)](https://fastapi.tiangolo.com)
+[![Next.js](https://img.shields.io/badge/NEXT.JS-14-111827?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org)
+
 ---
 
 Whether you're visually impaired, have RSI, multitasking or just want hands-free browsing, Spectra uses pure vision AI to understand and control any webpage.
 
 **Your screen, your voice, your way.**
 
-**[🚀 Live Demo](https://spectra.aqta.ai)** | **[▶️ Demo Video (90s)](https://youtu.be/spectra-demo)** | **[Start Here](START_HERE.md)** | **[Quick Start](QUICKSTART.md)** | **[Accessibility](ACCESSIBILITY.md)** | **[Architecture](ARCHITECTURE.md)** | **[Troubleshooting](TROUBLESHOOTING.md)**
+**[🚀 Live Demo](https://spectra.aqta.ai)** | **[▶️ Demo Video](#)** | **[Start Here](START_HERE.md)** | **[Quick Start](QUICKSTART.md)** | **[Accessibility](ACCESSIBILITY.md)** | **[Architecture](ARCHITECTURE.md)** | **[Troubleshooting](TROUBLESHOOTING.md)**
 
 ---
 
 ## Why only Gemini can do this
 
-Every other AI browser agent uses a request–response loop: send a screenshot, wait for a text reply, parse it, act. That model has a floor — there's always a gap, always a turn boundary, always a moment where the AI is gone and you're waiting.
+Every other AI browser agent uses a request–response loop: send a screenshot, wait for a text reply, parse it, act. That model has a floor , there's always a gap, always a turn boundary, always a moment where the AI is gone and you're waiting.
 
-Gemini Live API eliminates that boundary entirely. `bidiGenerateContent` is a persistent bidirectional WebSocket: voice audio streams in continuously, Gemini's native audio streams back in real time, and tool calls (click, type, navigate) interleave with speech mid-conversation. The result is that Spectra *talks while it works* — it doesn't wait until it's finished clicking before responding. It sounds and feels like a person sitting next to you at a computer.
+Gemini Live API eliminates that boundary entirely. `bidiGenerateContent` is a persistent bidirectional WebSocket: voice audio streams in continuously, Gemini's native audio streams back in real time, and tool calls (click, type, navigate) interleave with speech mid-conversation. The result is that Spectra *talks while it works* , it doesn't wait until it's finished clicking before responding. It sounds and feels like a person sitting next to you at a computer.
 
 Three Gemini capabilities make this possible and aren't replicated anywhere else:
 
-- **Native audio I/O** — no TTS/STT middleware; Gemini speaks directly with natural prosody and handles interruptions natively via Voice Activity Detection
-- **Multimodal Live streaming** — screenshots and audio arrive in the same stream Gemini is already reasoning over; no separate vision API call, no round-trip
-- **Thinking with suppressed chain-of-thought** — `gemini-2.5-flash-native-audio-latest` reasons internally via its thinking budget but we suppress emission of those thoughts (`include_thoughts=False`), so the model navigates complex multi-step tasks intelligently without leaking internal monologue to the audio stream
+- **Native audio I/O** , no TTS/STT middleware; Gemini speaks directly with natural prosody and handles interruptions natively via Voice Activity Detection
+- **Multimodal Live streaming** , screenshots and audio arrive in the same stream Gemini is already reasoning over; no separate vision API call, no round-trip
+- **Thinking with suppressed chain-of-thought** , `gemini-2.5-flash-native-audio-latest` reasons internally via its thinking budget but we suppress emission of those thoughts (`include_thoughts=False`), so the model navigates complex multi-step tasks intelligently without leaking internal monologue to the audio stream
 
 No other model family currently exposes all three in a single real-time API. That is why Spectra is built on Gemini.
-
----
-
-## Technical Highlights
-
-| Requirement | Status | Location |
-|-------------|--------|----------|
-| Gemini Live API (bidiGenerateContent) | ✅ | `backend/app/streaming/session.py` |
-| Google GenAI SDK | ✅ | `backend/requirements.txt`, `google-genai>=1.14.0` |
-| Google Cloud deployment (Cloud Run) | ✅ | `infra/main.tf` · `.github/workflows/deploy.yml` |
-| Multimodal: screenshot → action | ✅ | `frontend/src/hooks/useScreenCapture.ts` → `session.py` |
-| Architecture diagram | ✅ | [`ARCHITECTURE.md`](ARCHITECTURE.md) |
-| **Bonus:** Infrastructure-as-Code | ✅ | `infra/main.tf` (Terraform) · `infra/deploy.sh` |
-| **Bonus:** Automated CI/CD | ✅ | `.github/workflows/deploy.yml` |
-| **Bonus:** Test suite (325 backend + 61 frontend) | ✅ | `backend/tests/` · `frontend/tests/` |
-
-**Cloud deployment proof:** see `.github/workflows/deploy.yml`, the `deploy-backend` job pushes to Cloud Run on every merge to `main`, with a health-check loop confirming the service is live.
-
----
-
-## ⚡ Performance Optimizations
-
-Spectra has been optimised for speed and reliability:
-
-| Optimization | Before | After | Impact |
-|--------------|--------|-------|--------|
-| Frame cooldown | 0.04s | 0.02s | 50% faster |
-| Describe cache TTL | 8s | 3s | Fresher results |
-| Typing delay | 30ms | 15ms | 50% faster |
-| Scroll wait | 300ms | 150ms | 50% faster |
-| Click delay | 10ms | 5ms | 50% faster |
-| Extension probe | 2s/5s | 0.5s/1.5s | 60% faster |
-| Vision concurrency | 3 | 2 | Faster individual calls |
-
-
----
-
-## 📊 By the Numbers
-
-| Metric | Value |
-|--------|-------|
-| 🌍 People with vision impairment worldwide | 2.2 billion |
-| ⚡ Voice-to-response latency | 200–500ms (OPTIMIZED) |
-| 🎯 Element click accuracy | 95%+ |
-| 📸 Screen capture rate | 2 frames/second |
-| 🔊 Audio sample rate | 16kHz PCM mono (input) / 24kHz (output) |
-| 🗣️ Languages supported (Gemini) | 30+ (Gemini native) |
-| 💾 Data stored on disk | Zero, screenshots in RAM only |
-| 📦 Lines of code | ~12,600 (source) |
-| ⚙️ Dependencies | 10 (backend) + 11 (frontend) |
-| 🐳 Docker image size | ~150MB |
-| ☕ Coffees consumed | Lost count |
-
----
-
-## 🎉 Fun Facts
-
-- **Zero mouse clicks required**, 100% voice + keyboard controllable
-- **Continuous mode available**, Click the mic status to enable always-on listening (no wake word needed)
-- **1 screenshot = ~80KB**, JPEG frames, not video streams, saving 95% bandwidth
-- **Barge-in works**, Interrupt Spectra mid-sentence and she stops immediately
-- **Extension is ~1,000 lines**, The browser bridge spans content.js and background.js
-- **Wake word runs locally**, "Hey Spectra" detection never leaves your browser
-- **Aoede voice**, Named after the Greek muse of song (Google's choice, not ours)
-- **First test command**, "Where am I?" → "You're on a blank page." Fair enough.
-- **Hardest bug**, WebSocket race conditions. 3 days to fix with single-reader pattern.
-- **Why "Spectra"?**, Sees the full spectrum of your screen: colours, layout, text, images
-- **Built in Dublin** 🇮🇪, Fuelled by Barry's Tea and determination
 
 ---
 
@@ -144,18 +83,18 @@ No reading. No staring. No typing. Just talk.
 This is a real end-to-end task a blind user would struggle with on any traditional screen reader:
 
 ```
-You: "Hey Spectra — check my Gmail and read me any unread emails from today."
+You: "Hey Spectra , check my Gmail and read me any unread emails from today."
 
 Spectra: "Navigating to Gmail now... You have three unread emails today.
           The first is from Sarah at 9:14am, subject: 'Team lunch Thursday'.
           She's asking if you can make it and suggests the Italian place on
-          Grafton Street. The second is from your bank — a transaction alert
+          Grafton Street. The second is from your bank , a transaction alert
           for €42.50 at Tesco. The third is a GitHub notification."
 
-You: "Reply to Sarah — tell her yes, Thursday works, see her at one."
+You: "Reply to Sarah , tell her yes, Thursday works, see her at one."
 
 Spectra: "Opening Sarah's email... clicking Reply... typing your message now...
-          Done. I've typed 'Yes, Thursday works — see you at one!' Should I
+          Done. I've typed 'Yes, Thursday works , see you at one!' Should I
           send it?"
 
 You: "Send it."
@@ -163,7 +102,71 @@ You: "Send it."
 Spectra: "Sent. Sarah will have your reply in a moment."
 ```
 
-No mouse. No keyboard. No reading. A task that takes a sighted person 45 seconds, done by voice in under two minutes — on any website, without the site needing to support any accessibility standard.
+No mouse. No keyboard. No reading. A task that takes a sighted person 45 seconds, done by voice in under two minutes , on any website, without the site needing to support any accessibility standard.
+
+---
+
+## Technical Highlights
+
+| Requirement | Status | Location |
+|-------------|--------|----------|
+| Gemini Live API (bidiGenerateContent) | ✅ | `backend/app/streaming/session.py` |
+| Google GenAI SDK | ✅ | `backend/requirements.txt`, `google-genai>=1.14.0` |
+| Google Cloud deployment (Cloud Run) | ✅ | `deploy.sh` · `infra/main.tf` |
+| Multimodal: screenshot → action | ✅ | `frontend/src/hooks/useScreenCapture.ts` → `session.py` |
+| Architecture diagram | ✅ | [`ARCHITECTURE.md`](ARCHITECTURE.md) |
+| **Bonus:** Infrastructure-as-Code | ✅ | `infra/main.tf` (Terraform) · `deploy.sh` |
+| **Bonus:** Test suite (325 backend + 61 frontend) | ✅ | `backend/tests/` · `frontend/tests/` |
+
+**Cloud deployment proof:** see `.github/workflows/deploy.yml`, the `deploy-backend` job pushes to Cloud Run on every merge to `main`, with a health-check loop confirming the service is live.
+
+---
+
+## Performance Optimisations
+
+Spectra has been optimised for speed and reliability:
+
+| Optimization | Before | After | Impact |
+|--------------|--------|-------|--------|
+| Frame cooldown | 0.04s | 0.02s | 50% faster |
+| Describe cache TTL | 8s | 3s | Fresher results |
+| Typing delay | 30ms | 15ms | 50% faster |
+| Scroll wait | 300ms | 150ms | 50% faster |
+| Click delay | 10ms | 5ms | 50% faster |
+| Extension probe | 2s/5s | 0.5s/1.5s | 60% faster |
+| Vision concurrency | 3 → 2 | Fewer parallel calls | Lower per-call latency |
+
+---
+
+## 📊 By the Numbers
+
+| Metric | Value |
+|--------|-------|
+| 🌍 People with vision impairment worldwide | 2.2 billion |
+| ⚡ Voice-to-response latency | 200–500ms |
+| 🎯 Element click accuracy | 95%+ |
+| 📸 Screen capture rate | 2 frames/second |
+| 🔊 Audio sample rate | 16kHz PCM mono (input) / 24kHz (output) |
+| 🗣️ Languages supported (Gemini) | 30+ (Gemini native) |
+| 💾 Data stored on disk | Zero , screenshots in RAM only |
+| 📦 Lines of code | ~12,600 (source) |
+| ⚙️ Dependencies | 10 (backend) + 11 (frontend) |
+| 🐳 Docker image size | ~150MB |
+| ☕ Coffees consumed | Lost count |
+
+---
+
+## 🎉 Fun Facts
+
+- **Zero mouse clicks required** , 100% voice + keyboard controllable
+- **Continuous mode available** , always-on listening, no wake word needed
+- **1 screenshot = ~80KB** , JPEG frames, not video, saving 95% bandwidth
+- **Barge-in works** , interrupt Spectra mid-sentence and she stops immediately
+- **Wake word runs locally** , "Hey Spectra" detection never leaves your browser
+- **Aoede voice** , named after the Greek muse of song (Google's choice, not ours)
+- **Hardest bug** , WebSocket race conditions; 3 days to fix with single-reader pattern
+- **Why "Spectra"?** , sees the full spectrum of your screen: colours, layout, text, images
+- **Built in Dublin** 🇮🇪 , fuelled by Barry's Tea and determination
 
 ---
 
@@ -292,8 +295,10 @@ spectra/
 │   ├── next.config.mjs
 │   └── Dockerfile
 ├── infra/
-│   ├── deploy.sh               # Cloud Run deployment
-│   └── main.tf                 # Terraform (Cloud Run, Firestore, Storage)
+│   ├── main.tf                 # Terraform (Cloud Run, Service Account, IAM)
+│   ├── variables.tf
+│   ├── outputs.tf
+│   └── terraform.tfvars.example
 ├── backend/tests/              # 17 backend test files (pytest)
 ├── ACCESSIBILITY.md
 ├── QUICKSTART.md
@@ -308,13 +313,42 @@ spectra/
 ```bash
 git clone https://github.com/Aqta-ai/spectra.git
 cd spectra
-cp backend/.env.example backend/.env   # add your GOOGLE_API_KEY
+
+# Authenticate with Google Cloud (Vertex AI)
+gcloud auth application-default login
+
+# Configure your project
+cp backend/.env.example backend/.env
+# Set GOOGLE_CLOUD_PROJECT=your-gcp-project-id in backend/.env
+
 docker-compose up
 ```
 
 Open **http://localhost:3000** → install the Chrome extension from `extension/` → press **Q** and start talking.
 
 **Need more detail?** See [START_HERE.md](START_HERE.md) (5-min guide) or [QUICKSTART.md](QUICKSTART.md) (full setup with manual + Cloud Run options).
+
+## ☁️ Cloud Deployment
+
+One command deploys backend + frontend to Cloud Run with Vertex AI:
+
+```bash
+./deploy.sh analog-sum-485815-j3 europe-west1
+```
+
+This will:
+- Enable required GCP APIs (Vertex AI, Cloud Run, Cloud Build)
+- Create a `spectra-backend` service account with `roles/aiplatform.user`
+- Deploy the FastAPI backend to Cloud Run (Vertex AI auth via service account ADC , no API key needed)
+- Build and deploy the Next.js frontend via Cloud Build
+- Wire CORS between frontend and backend
+
+**Terraform (IaC):** See [infra/](infra/) for Terraform that provisions the same infrastructure:
+```bash
+cd infra
+cp terraform.tfvars.example terraform.tfvars   # fill in your values
+terraform init && terraform apply
+```
 
 ---
 

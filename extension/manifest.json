@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Spectra Bridge",
+  "name": "Spectra",
   "version": "2.0.0",
   "description": "AI screen reader and voice assistant — helps blind and hands-free users browse the web. Built by Anya from Aqta.",
   "permissions": [
@@ -39,10 +39,5 @@
     "64": "icons/icon64.png",
     "128": "icons/icon128.png"
   },
-  "incognito": "spanning",
-  "browser_specific_settings": {
-    "gecko": {
-      "strict_min_version": "109.0"
-    }
-  }
+  "incognito": "spanning"
 }

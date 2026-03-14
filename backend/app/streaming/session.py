@@ -128,7 +128,12 @@ class SpectraStreamingSession:
         self.websocket = websocket
         self.user_id = user_id
         self.session_id = session_id or str(uuid.uuid4())
-        self.client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
+        _gcp_project = os.getenv("GOOGLE_CLOUD_PROJECT")
+        _gcp_location = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
+        if _gcp_project:
+            self.client = genai.Client(vertexai=True, project=_gcp_project, location=_gcp_location)
+        else:
+            self.client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
         self.gemini_session = None
         self._running = False
         self._action_queue: asyncio.Queue = asyncio.Queue()
@@ -157,8 +162,10 @@ class SpectraStreamingSession:
         
         # Get persistent session state from session manager
         self.session_manager = get_session_manager()
+        # Key by user_id, not session_id — session_id changes on every page reload,
+        # but we need screen-share state to persist across reconnects.
         self.session_state: SessionState = self.session_manager.get_or_create_session(
-            self.session_id, self.user_id
+            self.user_id, self.user_id
         )
         
         # Persistent session state - CRITICAL for avoiding reconnections
@@ -311,13 +318,15 @@ class SpectraStreamingSession:
             # Transcribe what the user says so the frontend can show it
             input_audio_transcription=types.AudioTranscriptionConfig(),
             # VAD tuning: HIGH start sensitivity catches first words before full
-            # voice onset; LOW end sensitivity avoids cutting off trailing words.
+            # voice onset; HIGH end sensitivity means Gemini responds quickly
+            # after the user stops speaking — LOW was causing Gemini to keep
+            # waiting and never reply to short commands.
             # prefix_padding_ms=300 includes 300ms of audio before VAD fires so
             # the first syllable is never clipped.
             realtime_input_config=types.RealtimeInputConfig(
                 automatic_activity_detection=types.AutomaticActivityDetection(
                     start_of_speech_sensitivity=types.StartSensitivity.START_SENSITIVITY_HIGH,
-                    end_of_speech_sensitivity=types.EndSensitivity.END_SENSITIVITY_LOW,
+                    end_of_speech_sensitivity=types.EndSensitivity.END_SENSITIVITY_HIGH,
                     prefix_padding_ms=300,
                 )
             ),
@@ -347,6 +356,7 @@ class SpectraStreamingSession:
                     ) as session:
                         self.gemini_session = session
                         self._running = True
+                        _session_start_time = time.time()
                         logger.info("Gemini Live session (re)connected")
                         # Single small silence burst to prevent immediate session timeout.
                         try:
@@ -432,8 +442,13 @@ class SpectraStreamingSession:
                             _reconnect_delay = min(_reconnect_delay * 2, 30)
 
                         else:
-                            logger.warning("Gemini receive loop exited cleanly")
-                            _reconnect_delay = 1.0  # clean exit = reset backoff
+                            session_age = time.time() - _session_start_time
+                            if session_age >= 5.0:
+                                logger.warning("Gemini receive loop exited cleanly")
+                                _reconnect_delay = 1.0  # healthy session = reset backoff
+                            else:
+                                logger.warning(f"Gemini receive loop exited cleanly after {session_age:.1f}s — likely rate-limited or rejected; backing off")
+                                _reconnect_delay = min(_reconnect_delay * 2, 30)
 
                         finally:
                             self._running = False
@@ -546,9 +561,11 @@ class SpectraStreamingSession:
                         break
 
                 # Gemini keep-alive — only when Gemini session is live
+                # Threshold is 2s (not 15s) so the first heartbeat tick (3s) fires
+                # before Gemini's ~5s idle timeout kills the session pre-activation.
                 if self.gemini_session and self._running:
                     time_since_input = time.time() - self._last_input_time
-                    if 15.0 < time_since_input < 60.0:
+                    if 2.0 < time_since_input < 60.0:
                         try:
                             silence = b'\x00' * 800
                             await self.gemini_session.send_realtime_input(
@@ -635,44 +652,7 @@ class SpectraStreamingSession:
                             logger.info(f"💭 Memory command handled: '{text}'")
                             continue
                         
-                        # Check for location queries (accessibility enhancement)
-                        if self.location_handler.is_location_query(text):
-                            logger.info(f"🗺️ Location query detected: '{text}'")
-                            
-                            # Force fresh screen analysis for location queries
-                            if self._latest_frame:
-                                try:
-                                    screen_description = await self._describe_screen({"focus_area": "full"})
-                                    
-                                    location_response = await self.location_handler.handle_location_query(text, screen_description)
-                                    
-                                    if location_response:
-                                        # Send location response directly to user
-                                        await self.websocket.send_json({
-                                            "type": "text",
-                                            "data": location_response,
-                                        })
-                                        
-                                        # Also send to Gemini for context, but with location info
-                                        enhanced_text = f"{text}\n\n[Location Context: {location_response}]"
-                                        await self._send_to_gemini(enhanced_text)
-                                        logger.info(f"✅ Location query processed: '{location_response}'")
-                                    else:
-                                        # Fallback to normal processing if location handler returns None
-                                        await self._process_normal_text_message(text)
-                                except Exception as e:
-                                    logger.error(f"Location query processing failed: {e}")
-                                    # Fallback to normal processing on error
-                                    await self._process_normal_text_message(text)
-                            else:
-                                # No screen frame available - inform user and request screen sharing
-                                location_response = "I need to see your screen to tell you where you are. Please press W to share your screen."
-                                await self.websocket.send_json({
-                                    "type": "text",
-                                    "data": location_response,
-                                })
-                                logger.info("🗺️ Location query without screen - requested screen sharing")
-                        else:
+                        if True:  # location queries handled by Gemini via system instruction
                             # Check for voice commands (accessibility enhancement)
                             if self.voice_processor.is_voice_command(text):
                                 logger.info(f"🎤 Voice command detected: '{text}'")
@@ -950,11 +930,13 @@ class SpectraStreamingSession:
         to describe the current screen content.
         """
         if not self._latest_frame:
-            # Wait up to 2s for a frame to arrive before giving up
-            for _ in range(20):
-                await asyncio.sleep(0.1)
-                if self._latest_frame:
-                    break
+            # Only wait for a frame if screen was previously shared (momentary gap during navigation).
+            # If screen was NEVER shared, return immediately — no point polling.
+            if self._screen_ever_shared:
+                for _ in range(20):
+                    await asyncio.sleep(0.1)
+                    if self._latest_frame:
+                        break
 
             if not self._latest_frame:
                 # If the screen was EVER shared this session, don't ask again —

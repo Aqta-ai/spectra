@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowLeft, Github } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Guide , Spectra",
@@ -143,17 +143,26 @@ export default function GuidePage() {
         </div>
       </section>
 
-      <footer className="py-3 text-center text-xs text-spectra-muted/60 border-t border-white/5">
-        <span>&copy; 2026 Aqta Technologies Ltd</span>
-        <span className="mx-2">&middot;</span>
-        <Link href="/" className="hover:text-spectra-secondary transition-colors">Spectra</Link>
-        <span className="mx-2">&middot;</span>
-        <a href="https://www.apache.org/licenses/LICENSE-2.0" target="_blank" rel="noopener noreferrer" className="hover:text-spectra-secondary transition-colors" aria-label="Apache License 2.0 (opens in new tab)">Apache 2.0</a>
-        <span className="mx-2">&middot;</span>
-        <a href="https://github.com/Aqta-ai/spectra" target="_blank" rel="noopener noreferrer" className="hover:text-spectra-secondary transition-colors inline-flex items-center gap-1" aria-label="View source on GitHub (opens in new tab)">
-          <Github size={11} aria-hidden="true" />
-          Source
+      <footer className="px-4 sm:px-6 py-4 text-center text-xs text-white/30 flex flex-col items-center gap-2 border-t border-white/5">
+        <a
+          href="https://cloud.google.com/run"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="opacity-60 hover:opacity-90 transition-opacity"
+          aria-label="Deployed on Google Cloud Run"
+        >
+          <img src="https://deploy.cloud.run/button.svg" alt="Run on Google Cloud" className="h-7" />
         </a>
+        <div>
+          Built by Anya, Aqta
+          {" · "}
+          <Link href="/" className="hover:text-white/50 transition-colors">Spectra</Link>
+          {" · "}
+          <Link href="/overlay" className="hover:text-white/50 transition-colors">Overlay</Link>
+          {" · "}
+          <a href="https://github.com/Aqta-ai/spectra" target="_blank" rel="noopener noreferrer" className="hover:text-white/50 transition-colors">GitHub</a>
+          {" · Apache 2.0"}
+        </div>
       </footer>
     </div>
   );

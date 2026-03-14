@@ -2,13 +2,13 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Spectra, Your screen, your voice, your way",
+  title: "Spectra | Your screen, your voice, your way",
   description:
     "For anyone who can't see a screen, doesn't want to stare at one or just needs their hands free. Spectra sees your screen, speaks what matters, and acts on your voice command.",
   keywords: ["accessibility", "screen reader", "AI agent", "voice control", "browser automation", "hands-free browsing"],
   authors: [{ name: "Anya from Aqta", url: "https://github.com/Aqta-ai/spectra" }],
   creator: "Anya from Aqta",
-  metadataBase: new URL("https://github.com/Aqta-ai/spectra"),
+  metadataBase: new URL("https://spectra.aqta.ai"),
   manifest: "/manifest.json",
   icons: {
     icon: [
@@ -30,20 +30,29 @@ export const metadata: Metadata = {
     telephone: false,
   },
   openGraph: {
-    title: "Spectra, Your screen, your voice, your way",
+    title: "Spectra | Your screen, your voice, your way",
     description:
       "For anyone who can't see a screen, doesn't want to stare at one or just needs their hands free.",
-    url: "https://github.com/Aqta-ai/spectra",
+    url: "https://spectra.aqta.ai",
     siteName: "Spectra",
     locale: "en_GB",
     type: "website",
+    images: [
+      {
+        url: "/opengraph-image",
+        width: 1200,
+        height: 630,
+        alt: "Spectra | AI accessibility agent. Your screen, your voice, your way.",
+      },
+    ],
   },
   twitter: {
-    card: "summary",
-    title: "Spectra, Your screen, your voice, your way",
+    card: "summary_large_image",
+    title: "Spectra | Your screen, your voice, your way",
     description:
       "For anyone who can't see a screen, doesn't want to stare at one or just needs their hands free.",
-    creator: "@AqtaTech (Anya from Aqta)",
+    creator: "@AqtaTech",
+    images: ["/opengraph-image"],
   },
 };
 
