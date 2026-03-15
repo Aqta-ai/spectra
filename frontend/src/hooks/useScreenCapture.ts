@@ -24,7 +24,7 @@ export function useScreenCapture({ onFrame, fps = 2 }: ScreenCaptureOptions) {
 
   useEffect(() => { onFrameRef.current = onFrame; }, [onFrame]);
 
-  /** Optimized hash function for frame comparison */
+  /** Optimised hash function for frame comparison */
   const quickHash = useCallback((data: Uint8ClampedArray): string => {
     let hash = 0;
     // Sample every 100th pixel for speed
@@ -44,6 +44,11 @@ export function useScreenCapture({ onFrame, fps = 2 }: ScreenCaptureOptions) {
   }, []);
 
   const startCapture = useCallback(async () => {
+    // Guard: if already capturing, don't create a second stream + setInterval.
+    // Without this, a double-click on "Share screen" leaks the first MediaStream
+    // and runs two frame intervals simultaneously.
+    if (streamRef.current) return;
+
     try {
       const stream = await navigator.mediaDevices.getDisplayMedia({
         video: { frameRate: 3, width: 960, height: 540 },
@@ -95,7 +100,7 @@ export function useScreenCapture({ onFrame, fps = 2 }: ScreenCaptureOptions) {
       // Send initial frame after video is ready
       setTimeout(sendFirstFrame, 100);
 
-      // Optimized frame processing with requestAnimationFrame
+      // Optimised frame processing with requestAnimationFrame
       intervalRef.current = setInterval(() => {
         requestAnimationFrame(() => {
           // Bug fix: stopCapture() nulls streamRef between the setInterval tick and
@@ -124,7 +129,7 @@ export function useScreenCapture({ onFrame, fps = 2 }: ScreenCaptureOptions) {
             const shouldSkipComparison = frameCountRef.current % 4 === 0;
 
             if (!shouldSkipComparison) {
-              // Efficient frame change detection - sample center region only
+              // Efficient frame change detection - sample centre region only
               const sampleWidth = Math.min(canvas.width / 4, 200);
               const sampleHeight = Math.min(canvas.height / 4, 150);
               const startX = (canvas.width - sampleWidth) / 2;

@@ -105,8 +105,15 @@ export function useAudioStream({ onAudioChunk }: AudioStreamOptions) {
   }, []);
 
   const stopMic = useCallback(() => {
-    workletNodeRef.current?.disconnect();
-    workletNodeRef.current = null;
+    if (workletNodeRef.current) {
+      // Null the message handler BEFORE disconnect so in-flight messages from the
+      // AudioWorklet thread don't reach onAudioChunkRef after the session closes.
+      // Without this, chunks queued in the worklet port fire after stopMic returns
+      // and get sent to whatever backend session is open next.
+      workletNodeRef.current.port.onmessage = null;
+      workletNodeRef.current.disconnect();
+      workletNodeRef.current = null;
+    }
     contextRef.current?.close();
     contextRef.current = null;
     streamRef.current?.getTracks().forEach((t) => t.stop());

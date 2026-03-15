@@ -276,7 +276,7 @@ export class ActionExecutor {
     const isSingleChar = normalized.length === 1;
     const isModifierCombo = /^(Ctrl|Alt|Shift|Meta)\+.+$/i.test(normalized);
     if (!NAMED_KEYS.has(normalized) && !isSingleChar && !isModifierCombo) {
-      return `key_failed: unrecognized key '${key}'`;
+      return `key_failed: unrecognised key '${key}'`;
     }
 
     try {

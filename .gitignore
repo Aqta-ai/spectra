@@ -15,9 +15,14 @@ credentials.json
 *-credentials*.json
 *service*account*.json
 *service-account*.json
+config/secrets.json
+secrets/
+.secrets/
 
 # Local / IDE (optional — keep local config off public repo)
 .cursor/
+.kiro/
+.claude/
 
 # Local extensions
 pro/
@@ -28,15 +33,37 @@ __pycache__/
 *$py.class
 .venv/
 venv/
+env/
+ENV/
 *.egg-info/
 dist/
 build/
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+.tox/
+.nox/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pytype/
+cython_debug/
 
 # Node
 node_modules/
 .next/
 out/
 *.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+lerna-debug.log*
+.npm
+.eslintcache
+.stylelintcache
 
 # IDE
 .vscode/
@@ -44,14 +71,47 @@ out/
 *.swp
 *.swo
 *~
+.project
+.classpath
+.c9revisions/
+.history/
+.ionide/
 
 # OS
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
+Desktop.ini
 
 # Logs
 *.log
+logs/
 backend/logs/
+frontend/logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Archives & builds
+*.zip
+*.tar.gz
+*.tar
+*.rar
+*.7z
+*.dmg
+*.iso
+spectra-extension.zip
+
+# Scripts (local-only)
+kill-ports.sh
+run.sh
+stop.sh
+setup-vertex-ai.sh
 
 # Terraform
 .terraform/
@@ -61,6 +121,8 @@ backend/logs/
 *.tfstate.*.backup
 *.tfvars
 !*.tfvars.example
+terraform.tfplan
+terraform.tfstate.d/
 
 # Lighthouse reports
 lighthouse-*.json
@@ -71,6 +133,7 @@ scripts/
 
 # Spectra session memory (runtime state — not for public repo)
 backend/.spectra/
+.spectra/
 
 # Spectra Overlay (local-only prototype — not for public repo)
 frontend/src/app/overlay/
@@ -82,6 +145,99 @@ backend/accessibility_testing/
 # Trace/telemetry data
 infra/spectra_traces.jsonl
 *.jsonl
+traces/
+telemetry/
 
-# Keep: README.md, LICENSE, CONTRIBUTING.md
+# Extension builds and archives
+*.zip
+*.tar.gz
+*.tar
+spectra-extension.zip
+extension/build/
+extension/dist/
+
+# Test coverage reports
+coverage/
+.coverage
+htmlcov/
+.nyc_output/
+jest-coverage/
+cypress/videos/
+cypress/screenshots/
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+*~
+.#*
+\#*#
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Cache directories
+.cache/
+.parcel-cache/
+.next/cache/
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Microbundle cache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# dotenv environment variables file
+.env.test
+.env.production
+
+# parcel-bundler cache (https://parceljs.org/)
+.cache
+.parcel-cache
+
+# Next.js build output
+.next
+out
+
+# Nuxt.js build / generate output
+.nuxt
+dist
+
+# Gatsby files
+.cache/
+public
+
+# Storybook build outputs
+.out
+.storybook-out
+
+# Temporary folders
+tmp/
+temp/
+
+# Keep: README.md, LICENSE, CONTRIBUTING.md, setup.py, .mailmap
 

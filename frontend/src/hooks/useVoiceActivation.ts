@@ -56,6 +56,7 @@ export function useVoiceActivation({
 }: VoiceActivationOptions) {
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const isRunningRef = useRef(false);
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const enabledRef = useRef(enabled);
   const onActivateRef = useRef(onActivate);
   enabledRef.current = enabled;
@@ -129,14 +130,14 @@ export function useVoiceActivation({
       
       // Don't retry if permission denied
       if (event.error !== "not-allowed" && enabledRef.current) {
-        setTimeout(() => startListening(), 1000);
+        retryTimerRef.current = setTimeout(() => startListening(), 1000);
       }
     };
 
     recognition.onend = () => {
       isRunningRef.current = false;
       if (enabledRef.current) {
-        setTimeout(() => startListening(), 100);
+        retryTimerRef.current = setTimeout(() => startListening(), 100);
       }
     };
 
@@ -152,6 +153,10 @@ export function useVoiceActivation({
 
   const stopListening = useCallback(() => {
     isRunningRef.current = false;
+    if (retryTimerRef.current) {
+      clearTimeout(retryTimerRef.current);
+      retryTimerRef.current = null;
+    }
     if (recognitionRef.current) {
       recognitionRef.current.onend = null;
       recognitionRef.current.onerror = null;

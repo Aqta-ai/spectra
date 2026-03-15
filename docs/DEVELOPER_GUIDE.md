@@ -1609,7 +1609,7 @@ Create PR with:
 - Clear description of changes
 - Link to related issues
 - Test results
-- Screenshots/demos if applicable
+- Screenshots if applicable
 
 ## Testing
 

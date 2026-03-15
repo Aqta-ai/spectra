@@ -37,7 +37,7 @@ graph TB
 
     %% Gemini Live API
     subgraph GeminiAPI["🤖 Gemini Live API"]
-        LiveModel[gemini-2.5-flash-native-audio-latest]
+        LiveModel[gemini-2.0-flash-exp]
         AudioStream[🎵 Real-time Audio<br/>Aoede Voice + VAD]
         VisionAnalysis[👁️ Vision Analysis<br/>Screenshot Understanding]
         FunctionCalls[⚙️ Function Calling<br/>UI Action Tools]
@@ -70,7 +70,7 @@ graph TB
     WSServer <-->|Streaming| SessionMgr
     SessionMgr <-->|bidiGenerateContent| LiveModel
     SessionMgr --> ToolRouter
-    SessionMgr --> Personalization
+    SessionMgr --> Memory
 
     ToolRouter -->|Server Tools| ServerTools
     ToolRouter -->|Client Tools| WSClient
@@ -94,7 +94,7 @@ graph TB
 
     class User userStyle
     class Frontend,VoiceAct,ScreenCap,ActionExec,WSClient,AudioPlayer frontendStyle
-    class Backend,WSServer,SessionMgr,ToolRouter,Personalization backendStyle
+    class Backend,WSServer,SessionMgr,ToolRouter,Memory backendStyle
     class GeminiAPI,LiveModel,AudioStream,VisionAnalysis,FunctionCalls geminiStyle
     class ServerTools,ClientTools,DescribeScreen,SaveSnapshot,DiffScreen,TeachApp,ClickElement,TypeText,ScrollPage,PressKey,Navigate toolStyle
     class Extension,ContentJS,BackgroundJS,ExtActions extensionStyle
@@ -138,7 +138,7 @@ graph TB
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                    GEMINI LIVE API (bidiGenerateContent)                     │
 │                                                                              │
-│  Model: gemini-2.5-flash-native-audio-latest                                 │
+│  Model: gemini-2.0-flash-exp                                                 │
 │  • Native audio input/output (Aoede voice)                                   │
 │  • Real-time vision analysis of screenshots                                  │
 │  • Function calling for UI actions                                           │
@@ -221,7 +221,7 @@ Gemini receives  ← Backend ← WebSocket ← Frontend ← action_result ←─
 | `scroll_page` | Client | Scroll up or down |
 | `press_key` | Client | Press keyboard key (Enter, Tab, Escape, etc.) |
 | `navigate` | Client | Navigate browser to URL |
-| `confirm_action` | Server | Ask user confirmation before destructive actions |
+| `confirm_action` | Server | Ask user confirmation before destructive actions (planned, not yet implemented) |
 | `save_snapshot` | Server | Save current screen as named reference |
 | `diff_screen` | Server | Compare current screen to saved snapshot |
 | `teach_me_app` | Server | Guided tour of current application |

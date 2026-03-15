@@ -33,7 +33,7 @@ resource "google_service_account" "backend" {
   depends_on   = [google_project_service.apis]
 }
 
-# Vertex AI access — lets backend call gemini-2.5-flash-native-audio-latest
+# Vertex AI access — lets backend call gemini-2.0-flash-exp
 resource "google_project_iam_member" "backend_vertex" {
   project = var.project_id
   role    = "roles/aiplatform.user"

@@ -27,23 +27,11 @@ load_dotenv()
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "WARNING"))
 logger = logging.getLogger(__name__)
 
-REVOLUT_SECRET_KEY = os.getenv("REVOLUT_SECRET_KEY", "")
-REVOLUT_MERCHANT_URL = (
-    "https://sandbox-merchant.revolut.com"
-    if os.getenv("REVOLUT_SANDBOX_MODE", "true").lower() == "true"
-    else "https://merchant.revolut.com"
-)
-
 # Optimized session tracking
 _active_sessions: dict[str, float] = {}
 _total_sessions = 0
 _session_queue: asyncio.Queue = asyncio.Queue()
 _session_lock = asyncio.Lock()  # Thread safety for session tracking
-
-# Simple in-memory rate limiter for /api/support (5 requests/minute per IP)
-_support_rate: dict[str, list[float]] = {}
-_SUPPORT_RATE_LIMIT = 5
-_SUPPORT_RATE_WINDOW = 60.0
 
 
 @asynccontextmanager
@@ -100,62 +88,47 @@ async def health():
     }
 
 
-@app.post("/api/support")
-async def create_support_order(request: Request):
-    """Create Revolut checkout order."""
-    import httpx
-    from fastapi.responses import JSONResponse
+@app.get("/vision-debug")
+async def vision_debug():
+    """Debug endpoint to check vision system status"""
+    from app.streaming.session_manager import get_session_manager
+    
+    session_manager = get_session_manager()
+    session_stats = session_manager.get_session_stats()
+    
+    # Check if any sessions have recent frames
+    recent_frames = 0
+    stale_frames = 0
+    current_time = time.time()
+    
+    for session_id, start_time in _active_sessions.items():
+        # This is a simplified check - in a real implementation,
+        # we'd need access to the actual session objects
+        if current_time - start_time < 10:  # Active in last 10s
+            recent_frames += 1
+        else:
+            stale_frames += 1
+    
+    return {
+        "status": "vision_debug",
+        "model": "gemini-2.5-flash-native-audio-preview-12-2025",
+        "vision_capable": True,
+        "active_sessions": len(_active_sessions),
+        "session_stats": session_stats,
+        "frame_status": {
+            "recent_frames": recent_frames,
+            "stale_frames": stale_frames,
+            "total_sessions_with_stream": session_stats.get("sessions_with_stream", 0)
+        },
+        "potential_issues": [
+            "Check if frontend is sending screenshot messages",
+            "Verify Gemini Live API is receiving video frames", 
+            "Ensure model has multimodal capabilities enabled",
+            "Check for frame timing issues or stale data"
+        ]
+    }
 
-    # Rate limit: 5 requests per minute per IP
-    client_ip = request.client.host if request.client else "unknown"
-    now = time.time()
-    timestamps = _support_rate.get(client_ip, [])
-    timestamps = [t for t in timestamps if now - t < _SUPPORT_RATE_WINDOW]
-    if len(timestamps) >= _SUPPORT_RATE_LIMIT:
-        return JSONResponse({"error": "Too many requests. Please wait a moment."}, status_code=429)
-    timestamps.append(now)
-    _support_rate[client_ip] = timestamps
 
-    if not REVOLUT_SECRET_KEY:
-        return JSONResponse({"error": "Payments not configured"}, status_code=500)
-
-    body = await request.json()
-    amount = body.get("amount", 500)
-    currency = body.get("currency", "EUR")
-
-    if not isinstance(amount, int) or amount < 100 or amount > 50000:
-        return JSONResponse({"error": "Amount must be between €1 and €500"}, status_code=400)
-
-    try:
-        async with httpx.AsyncClient(timeout=5.0) as client:  # Reduced timeout
-            resp = await client.post(
-                f"{REVOLUT_MERCHANT_URL}/api/1.0/orders",
-                headers={
-                    "Authorization": f"Bearer {REVOLUT_SECRET_KEY}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "amount": amount,
-                    "currency": currency,
-                    "description": "Support Spectra — open source accessibility",
-                },
-            )
-            data = resp.json()
-            logger.info("Revolut response status=%s body=%s", resp.status_code, data)
-
-            if resp.status_code >= 400:
-                logger.error("Revolut order error: %s", data)
-                return JSONResponse({"error": "Could not create payment"}, status_code=502)
-
-            checkout_url = data.get("checkout_url")
-            if not checkout_url:
-                logger.error("No checkout_url in Revolut response: %s", data)
-                return JSONResponse({"error": "No checkout URL returned"}, status_code=502)
-
-            return {"checkout_url": checkout_url}
-    except Exception as e:
-        logger.error("Support endpoint error: %s", e)
-        return JSONResponse({"error": "Payment service unavailable"}, status_code=503)
 
 
 @app.websocket("/ws")

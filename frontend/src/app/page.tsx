@@ -5,9 +5,13 @@ import { useSpectraSocket } from "@/hooks/useSpectraSocket";
 import { useAudioStream } from "@/hooks/useAudioStream";
 import { useScreenCapture } from "@/hooks/useScreenCapture";
 import { useVoiceActivation } from "@/hooks/useVoiceActivation";
+import { useOnboarding } from "@/hooks/useOnboarding";
+import { useFeedback } from "@/hooks/useFeedback";
 import { ActionExecutor } from "@/lib/actionExecutor";
 import { PcmAudioPlayer } from "@/lib/audioPlayer";
 import { listenForExtension, isExtensionAvailable } from "@/lib/extensionBridge";
+import { OnboardingGuide } from "@/components/OnboardingGuide";
+import { getFeedbackSystem } from "@/lib/feedbackSystem";
 
 interface Message {
   role: "user" | "assistant";
@@ -20,9 +24,9 @@ interface Message {
  * Module-level constant , never recreated per call.
  */
 const THINKING_PHRASES = [
-  "i've determined", "i've just refined", "i've analyzed", "i've begun",
+  "i've determined", "i've just refined", "i've analysed", "i've begun",
   "i've identified", "i've noted", "i've compiled", "i've hit a snag",
-  "i've now analyzed", "i'm seeing", "i am seeing", "i'm viewing",
+  "i've now analysed", "i'm seeing", "i am seeing", "i'm viewing",
   "i'm starting with", "i'm preparing to", "i'm trying to",
   "i'm puzzled", "i'm still trying", "i'm zeroing", "i'm concentrating",
   "i believe the user", "i plan to", "i will formulate",
@@ -36,9 +40,9 @@ const THINKING_PHRASES = [
   "establishing a friendly", "creating a comprehensive",
   // Inner-thought verbs seen leaking through
   "i'm verifying", "i'm revisiting", "i'm re-examining", "i'm exploring",
-  "i'm retrying", "i'm prepared to", "i'm re-analyzing", "i'm re-",
+  "i'm retrying", "i'm prepared to", "i'm re-analysing", "i'm re-",
   "my next action", "the previous attempt", "a fresh screen",
-  "its coordinates are", "i've re-analyzed", "once i understand",
+  "its coordinates are", "i've re-analysed", "once i understand",
   "i'll target", "i'll retry", "prime candidate",
 ];
 
@@ -56,7 +60,7 @@ function stripThinking(raw: string): string {
     return !THINKING_PHRASES.some((phrase) => lower.includes(phrase));
   });
   t = kept.join(" ");
-  t = t.replace(/(?:^|\.\s+)(?:Initiating|Gathering|Refining|Analyzing|Understanding|Processing|Examining|Registering|Currently|Specifically|Establishing|Verifying|Revisiting|Exploring|Retrying|Targeting|Reconsidering|Rechecking|Reassessing)\s[^.!?]*[.!?]/gi, ". ");
+  t = t.replace(/(?:^|\.\s+)(?:Initiating|Gathering|Refining|Analysing|Understanding|Processing|Examining|Registering|Currently|Specifically|Establishing|Verifying|Revisiting|Exploring|Retrying|Targeting|Reconsidering|Rechecking|Reassessing)\s[^.!?]*[.!?]/gi, ". ");
   t = t.replace(/Now,?\s+I\s+am\s+\w+ing[^.!?]*[.!?]/gi, "");
   t = t.replace(/I\s+am\s+(?:analyzing|examining|reviewing|understanding|processing|also making note|seeing|viewing)[^.!?]*[.!?]/gi, "");
   t = t.replace(/I'?m\s+re-?\w+ing\b[^.!?]*[.!?]/gi, "");
@@ -141,6 +145,16 @@ export default function Home() {
   const [assertiveAnnouncement, setAssertiveAnnouncement] = useState("");
   const [politeAnnouncement, setPoliteAnnouncement] = useState("");
   const [extensionReady, setExtensionReady] = useState(false);
+  const [showExtensionBanner, setShowExtensionBanner] = useState(true);
+
+  const { isFirstTime, hasSharedScreen, shouldShowOnboarding, markScreenShared, dismissOnboarding } = useOnboarding();
+
+  // Multimodal Feedback System - 10X User Experience
+  const feedback = useFeedback({
+    audioEnabled: true,
+    visualEnabled: true,
+    hapticEnabled: true,
+  });
 
   // Refs
   const actionExecutorRef = useRef(new ActionExecutor());
@@ -150,6 +164,13 @@ export default function Home() {
   const audioContextWarmedRef = useRef(false);
   const geminiReconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const unmuteSafetyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  
+  // Multimodal Feedback System - 10X User Experience
+  const feedbackSystemRef = useRef(getFeedbackSystem({
+    audioEnabled: true,
+    visualEnabled: true,
+    hapticEnabled: true,
+  }));
 
   const announceAssertive = useCallback((msg: string) => {
     setAssertiveAnnouncement("");
@@ -205,6 +226,16 @@ export default function Home() {
     };
   }, []);
 
+  // Sync speaking state with actual audio playback
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const isActuallyPlaying = audioPlayerRef.current.playing;
+      setIsSpeaking(isActuallyPlaying);
+    }, 100); // Check every 100ms
+
+    return () => clearInterval(interval);
+  }, []);
+
   // Socket
   const { connect, disconnect, sendAudio, sendText, sendFrame, isConnected } = useSpectraSocket({
     onText: (text) => {
@@ -233,15 +264,33 @@ export default function Home() {
     },
     onAudio: (base64Data) => {
       muteMic();
-      setIsSpeaking(true);
+      // Warm up again so AudioContext is running (e.g. after tab background)
+      audioPlayerRef.current.warmup();
+      setIsSpeaking(true); // Orb shows "speaking" as soon as we get a chunk
       audioPlayerRef.current.play(base64Data);
     },
     onAction: async (action, params) => {
+      const feedback = feedbackSystemRef.current;
       try {
-        return await actionExecutorRef.current.execute(action, params);
+        // Provide feedback for action start
+        await feedback.provideFeedback(
+          { type: action as any, params },
+          { success: true }
+        );
+        
+        const result = await actionExecutorRef.current.execute(action, params);
+        
+        // Provide feedback for action success
+        await feedback.showSuccess();
+        
+        return result;
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         console.error(`[Spectra] Action '${action}' threw:`, msg);
+        
+        // Provide feedback for action error
+        await feedback.showError(msg);
+        
         return `error: ${msg}`;
       }
     },
@@ -254,7 +303,7 @@ export default function Home() {
       const msg = humanizeResult(action, result);
       if (msg) announcePolite(msg);
       // Revert status to listening after action
-      setStatusText(isActive ? "Listening..." : "Press Q to start");
+      setStatusText(isActive ? "Listening…" : "Press Q or say “Hey Spectra”");
     },
     onTurnComplete: () => {
       // Unmute AFTER audio finishes playing , not immediately on turn_complete.
@@ -273,13 +322,18 @@ export default function Home() {
           unmuteSafetyTimerRef.current = null;
         }
         unmuteMic();
+        // Announce "Listening" via ARIA so blind/accessibility users know it's
+        // safe to speak — without this, they have no audio cue for when the mic
+        // unmutes and may speak into a muted mic, getting no response.
+        announceAssertive("Listening");
       };
       // Safety: force-unmute after 2.5s even if audio never fires onended
       // (8s hard backstop handles the case where Gemini dies without sending turn_complete)
       unmuteSafetyTimerRef.current = setTimeout(doUnmute, 2500);
       audioPlayerRef.current.notifyWhenDone(doUnmute);
 
-      setIsSpeaking(false);
+      // Update speaking state when turn completes
+      setIsSpeaking(audioPlayerRef.current.playing);
 
       if (currentResponse.trim()) {
         const finalText = stripThinking(currentResponse);
@@ -293,12 +347,12 @@ export default function Home() {
         setCurrentResponse("");
       }
       setIsThinking(false);
-      setStatusText(isActive ? "Listening..." : "Press Q to start");
+      setStatusText(isActive ? "Listening…" : "Press Q or say “Hey Spectra”");
     },
     onConnect: () => {
       setConnectionState("connected");
       setReconnectAttempt(0);
-      setStatusText(isActive ? "Listening..." : "Press Q to start");
+      setStatusText(isActive ? "Listening…" : "Press Q or say “Hey Spectra”");
       announceAssertive("Spectra is connected and ready. Press Q to start, or say Hey Spectra.");
       if (pendingMessages > 0) setPendingMessages(0);
     },
@@ -324,7 +378,7 @@ export default function Home() {
       setStatusText("Reconnecting...");
       if (geminiReconnectTimerRef.current) clearTimeout(geminiReconnectTimerRef.current);
       geminiReconnectTimerRef.current = setTimeout(() => {
-        setStatusText(isActive ? "Listening..." : "Press Q to start");
+        setStatusText(isActive ? "Listening…" : "Press Q or say “Hey Spectra”");
       }, 3000);
       // If Gemini dies mid-turn, turn_complete never arrives → mic stays muted forever.
       // Force-unmute and stop stale audio so the user can speak again after reconnect.
@@ -399,14 +453,19 @@ export default function Home() {
   const handleStop = useCallback(() => {
     if (!isActive) return;
     stopMic();
-    stopCapture();
+    // Keep screen capture alive across Q-restarts — frames only flow when
+    // isActive=true so there's no overhead. User shouldn't need to press W again
+    // just because they toggled Spectra off and back on.
     audioPlayerRef.current.stop();
+    // Reset warmup flag so the AudioContext is re-warmed on next Q press.
+    // stop() closes the AudioContext; without this reset, the next session
+    // skips warmup → new AudioContext created cold → may be suspended → audio fails.
+    audioContextWarmedRef.current = false;
     setIsActive(false);
     setIsListening(false);
-    setIsScreenSharing(false);
     setIsSpeaking(false);
-    setStatusText("Press Q to start");
-  }, [isActive, stopMic, stopCapture]);
+    setStatusText("Press Q or say “Hey Spectra”");
+  }, [isActive, stopMic]);
 
   const handleToggle = useCallback(() => {
     if (isActive) handleStop();
@@ -422,9 +481,10 @@ export default function Home() {
       try {
         await startCapture();
         setIsScreenSharing(true);
+        markScreenShared();
       } catch { /* denied */ }
     }
-  }, [isActive, isScreenSharing, handleStart, startCapture, stopCapture]);
+  }, [isActive, isScreenSharing, handleStart, startCapture, stopCapture, markScreenShared]);
 
   const handleSendMessage = useCallback((text: string) => {
     if (!text.trim()) return;
@@ -475,10 +535,13 @@ export default function Home() {
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <header className="border-b border-white/8 px-4 sm:px-6 py-3 sm:py-4 glass-dark">
         <div className="max-w-5xl mx-auto flex items-center justify-between gap-4">
-          {/* Logo */}
+          {/* Logo + tagline */}
           <div className="flex items-center gap-2.5 flex-shrink-0">
             <img src="/icon512.png" alt="" aria-hidden="true" className="w-7 h-7 sm:w-8 sm:h-8" />
-            <span className="text-lg sm:text-xl font-semibold tracking-tight">Spectra</span>
+            <div>
+              <span className="text-lg sm:text-xl font-semibold tracking-tight">Spectra</span>
+              <span className="hidden sm:inline text-white/40 text-xs font-normal ml-2">Voice-first screen reader</span>
+            </div>
           </div>
 
           {/* Right controls */}
@@ -520,14 +583,23 @@ export default function Home() {
               )}
             </div>
 
-            {/* Extension status */}
+            {/* Extension status — with install CTA when missing */}
             <div
-              className={`hidden sm:flex items-center gap-1.5 text-xs ${extensionReady ? "text-green-400/70" : "text-amber-400/70"}`}
-              title={extensionReady ? "Extension active" : "Extension not detected, browser actions unavailable"}
+              className={`flex items-center gap-1.5 text-xs ${extensionReady ? "text-green-400/70" : "text-amber-400/70"}`}
+              title={extensionReady ? "Extension active" : "Install Spectra Bridge for click/scroll/type"}
               aria-label={extensionReady ? "Browser extension connected" : "Browser extension not found"}
             >
-              <span className={`w-1.5 h-1.5 rounded-full ${extensionReady ? "bg-green-400" : "bg-amber-400 animate-pulse"}`} />
-              {extensionReady ? "Extension" : "No extension"}
+              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${extensionReady ? "bg-green-400" : "bg-amber-400 animate-pulse"}`} />
+              {extensionReady ? <span className="hidden sm:inline">Extension</span> : (
+                <a
+                  href="https://github.com/Aqta-ai/spectra#browser-extension"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-amber-300 underline underline-offset-1"
+                >
+                  Install extension
+                </a>
+              )}
             </div>
 
             <button
@@ -578,6 +650,26 @@ export default function Home() {
 
       {/* ── Main ───────────────────────────────────────────────────────────── */}
       <main className="flex-1 flex flex-col items-center px-4 sm:px-6 py-8 sm:py-12 relative">
+        {/* Onboarding: prompt to share screen when connected and first time */}
+        {shouldShowOnboarding && (
+          <OnboardingGuide
+            isFirstTime={isFirstTime}
+            hasSharedScreen={hasSharedScreen}
+            isConnected={isConnected}
+            onDismiss={dismissOnboarding}
+          />
+        )}
+
+        {/* Extension banner when connected but extension missing — dismissible */}
+        {!extensionReady && isConnected && showExtensionBanner && (
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40 max-w-lg mx-4 flex items-center gap-3 px-4 py-3 rounded-xl bg-amber-500/15 border border-amber-500/30 backdrop-blur-sm" role="status">
+            <span className="text-amber-300 text-sm">
+              Install the <a href="https://github.com/Aqta-ai/spectra#browser-extension" target="_blank" rel="noopener noreferrer" className="underline font-medium">Spectra Bridge</a> extension to click, type, and navigate with voice.
+            </span>
+            <button onClick={() => setShowExtensionBanner(false)} className="flex-shrink-0 p-1 rounded hover:bg-amber-500/20 text-amber-200" aria-label="Dismiss">×</button>
+          </div>
+        )}
+
         {/* Dot-grid background , only in hero state */}
         {!isActive && messages.length === 0 && (
           <div className="absolute inset-0 hero-mesh pointer-events-none" aria-hidden="true" />
@@ -628,6 +720,11 @@ export default function Home() {
                 <span className="text-spectra-secondary font-medium">"Hey Spectra"</span>{" "}
                 to begin
               </p>
+              {isFirstTime && (
+                <p className="text-white/40 text-xs max-w-md mx-auto mt-2">
+                  First time? Install the extension → Share screen (W) → Say &quot;Hey Spectra&quot;
+                </p>
+              )}
             </div>
 
             {/* CTA */}
@@ -716,8 +813,8 @@ export default function Home() {
                     Mic
                   </span>
                   {/* Screen */}
-                  <span className={`flex items-center gap-1.5 text-xs ${isScreenSharing ? "text-blue-400" : "text-white/30"}`}>
-                    <span className={`w-1.5 h-1.5 rounded-full ${isScreenSharing ? "bg-blue-400 animate-pulse" : "bg-white/20"}`} />
+                  <span className={`flex items-center gap-1.5 text-xs ${isScreenSharing ? "text-green-400" : "text-white/30"}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${isScreenSharing ? "bg-green-400 animate-pulse" : "bg-white/20"}`} />
                     Screen
                   </span>
                   {/* Connection */}
@@ -734,7 +831,7 @@ export default function Home() {
                   onClick={handleShareScreen}
                   className={`p-2 rounded-lg text-xs transition-all border ${
                     isScreenSharing
-                      ? "bg-blue-500/20 border-blue-500/40 text-blue-300"
+                      ? "bg-green-500/20 border-green-500/40 text-green-300"
                       : "bg-white/5 border-white/10 text-white/50 hover:text-white/80"
                   }`}
                   aria-label={isScreenSharing ? "Stop screen share (W)" : "Share screen (W)"}
@@ -907,30 +1004,15 @@ export default function Home() {
       </main>
 
       {/* ── Footer ─────────────────────────────────────────────────────────── */}
-      <footer className="px-4 sm:px-6 py-4 text-center text-xs text-white/30 flex flex-col items-center gap-2">
-        <a
-          href="https://cloud.google.com/run"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="opacity-60 hover:opacity-90 transition-opacity"
-          aria-label="Deployed on Google Cloud Run"
-        >
-          <img
-            src="https://deploy.cloud.run/button.svg"
-            alt="Run on Google Cloud"
-            className="h-7"
-          />
-        </a>
-        <div>
-          Built by Anya, Aqta
-          {" · "}
-          <a href="/guide" className="hover:text-white/50 transition-colors">Guide</a>
-          {" · "}
-          <a href="/overlay" className="hover:text-white/50 transition-colors">Overlay</a>
-          {" · "}
-          <a href="https://github.com/Aqta-ai/spectra" className="hover:text-white/50 transition-colors">GitHub</a>
-          {" · Apache 2.0"}
-        </div>
+      <footer className="px-4 sm:px-6 py-4 text-center text-xs text-white/30">
+        Spectra
+        {" · "}
+        <a href="/guide" className="hover:text-white/50 transition-colors">Guide</a>
+        {" · "}
+        <a href="/overlay" className="hover:text-white/50 transition-colors">Overlay</a>
+        {" · "}
+        <a href="https://github.com/Aqta-ai/spectra" className="hover:text-white/50 transition-colors">GitHub</a>
+        {" · Apache 2.0"}
       </footer>
 
       {/*

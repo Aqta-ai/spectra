@@ -44,8 +44,17 @@ export class PcmAudioPlayer {
   private async ensureRunning(): Promise<AudioContext | null> {
     this.initAudioContext();
     if (!this.audioContext) return null;
+    // Must resume if suspended (browser policy / tab background) or no sound plays
     if (this.audioContext.state === "suspended") {
-      await this.audioContext.resume();
+      try {
+        await this.audioContext.resume();
+      } catch (e) {
+        console.warn("[AudioPlayer] resume() failed:", e);
+        return null;
+      }
+    }
+    if (this.audioContext.state !== "running") {
+      console.warn("[AudioPlayer] Context not running after resume:", this.audioContext.state);
     }
     return this.audioContext;
   }

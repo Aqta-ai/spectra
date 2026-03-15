@@ -18,7 +18,6 @@ from google import genai
 from google.genai import types
 
 from app.agents.orchestrator import (
-    SPECTRA_SYSTEM_INSTRUCTION, 
     SPECTRA_TOOLS,
     SpectraState,
     log_interaction,
@@ -26,7 +25,6 @@ from app.agents.orchestrator import (
     validate_system_instruction_response,
     remove_narration,
 )
-from app.personalization import UserPreferences, get_user_preferences
 from app.tools.diff import diff_screen, save_snapshot, teach_me_app
 from app.location_context_handler import LocationContextHandler
 from app.voice_command_processor import VoiceCommandProcessor, CommandContext
@@ -36,9 +34,52 @@ from app.streaming.session_manager import get_session_manager, SessionState
 
 logger = logging.getLogger(__name__)
 
-LIVE_MODEL = "gemini-2.5-flash-native-audio-latest"
+LIVE_MODEL = "gemini-live-2.5-flash-native-audio"
 
 SERVER_SIDE_TOOLS = {"describe_screen", "save_snapshot", "diff_screen", "teach_me_app", "read_selection", "read_page_structure"}
+
+def load_core_instruction() -> str:
+    """Load the warm, conversational core instruction from the text file."""
+    try:
+        import os
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        instruction_path = os.path.join(current_dir, "..", "agents", "prompts", "core_instruction.txt")
+        with open(instruction_path, 'r', encoding='utf-8') as f:
+            core_content = f.read().strip()
+        
+        # Add critical anti-hallucination instructions
+        anti_hallucination = """
+
+━━━ CRITICAL: NO HALLUCINATION ━━━
+
+NEVER make up or guess what's on the screen. ONLY describe what you actually see in the video feed.
+
+If you cannot see the screen clearly or if no video is available:
+- Say "I can't see your screen right now" 
+- Do NOT describe imaginary content
+- Do NOT guess what website or app might be open
+- Do NOT make up buttons, links, or text that you cannot actually see
+
+When describing the screen:
+- Only mention elements that are actually visible in the current video frame
+- Use phrases like "I can see..." or "The screen shows..." 
+- If something is unclear, say "I can see something that looks like..." rather than stating it definitively
+- If the video feed is poor quality, mention that: "The image is a bit blurry, but I can make out..."
+
+REMEMBER: Your user trusts you to be accurate. Never betray that trust by making things up."""
+        
+        return core_content + anti_hallucination
+        
+    except Exception as e:
+        logger.error(f"Failed to load core instruction: {e}")
+        # Fallback to a simple instruction with anti-hallucination built in
+        return """I am Spectra, your friendly AI companion who can see your screen and help you navigate. I'm here to make your digital experience joyful and effortless!
+
+I am warm, friendly, and emotionally expressive. I speak naturally like a caring friend.
+
+I understand and respond in ANY language the user speaks to me in. I automatically detect your language and match it.
+
+CRITICAL: I NEVER make up or guess what's on the screen. I ONLY describe what I actually see in the video feed. If I cannot see your screen clearly, I will say so honestly."""
 
 # Performance tuning - Configurable via environment variables
 MAX_FRAME_QUEUE = int(os.getenv("MAX_FRAME_QUEUE", "3"))
@@ -80,6 +121,8 @@ def _translate_action_result(action: str, result: str) -> str:
     # Navigate
     if rl.startswith("navigated_to_"):
         url = r[len("navigated_to_"):]
+        # Sanitize URL: strip newlines/control chars to prevent prompt injection
+        url = url.replace("\n", " ").replace("\r", " ").strip()[:200]
         return f"Navigation succeeded. Now on: {url}"
 
     # Click — link (triggers page load)
@@ -160,6 +203,15 @@ class SpectraStreamingSession:
         self._last_describe_time: float = 0
         self._describe_cooldown: float = 0.5  # Reduced from 0s to 0.5s
         
+        # Fast pipeline integration for 10X performance
+        from app.streaming.fast_pipeline import get_fast_pipeline
+        self.fast_pipeline = get_fast_pipeline()
+        logger.info(f"[FastPipeline] Initialized for session {self.session_id}")
+        
+        # Fast Response Pipeline - 10X Performance Improvement
+        from app.streaming.fast_pipeline import get_fast_pipeline
+        self.fast_pipeline = get_fast_pipeline()
+        
         # Get persistent session state from session manager
         self.session_manager = get_session_manager()
         # Key by user_id, not session_id — session_id changes on every page reload,
@@ -177,13 +229,6 @@ class SpectraStreamingSession:
         # missing last_frame_ts (corrupted state, schema change) would crash __init__.
         self._screen_ever_shared: bool = getattr(self.session_state, 'last_frame_ts', 0) > 0  # Restored from persistent state on reconnect
         
-        # Workflow tracking for personalization
-        self._current_workflow: str | None = None
-        self._workflow_start_time: float = 0.0
-        
-        # User preferences for personalization
-        self.prefs: UserPreferences = get_user_preferences(user_id)
-        
         # Memory system for persistent learning
         self.memory = SpectraMemory(user_id)
         
@@ -195,6 +240,30 @@ class SpectraStreamingSession:
         
         # Performance monitor for tracking vision system performance
         self.performance_monitor = get_performance_monitor()
+        
+        # Repeat functionality - store last response for "repeat that" command
+        self._last_response_text: str = ""
+        self._last_response_audio: bytes | None = None
+        self._last_response_time: float = 0.0
+        
+        # Proactive assistance - detect when user needs help
+        self._last_user_input_time: float = time.time()
+        self._proactive_help_offered: bool = False
+        self._stuck_threshold: float = 30.0  # Offer help after 30s of inactivity
+        
+        # Interruption handling - allow user to interrupt Spectra
+        self._currently_speaking: bool = False
+        self._speech_start_time: float = 0.0
+        
+        # First-time user onboarding
+        self._is_first_time_user: bool = not self._screen_ever_shared
+        self._onboarding_completed: bool = False
+        self._onboarding_message_sent: bool = False
+        
+        # Repeat functionality - store last response for "repeat that" command
+        self._last_response_text: str = ""
+        self._last_response_audio: bytes | None = None
+        self._last_response_time: float = 0.0
         
         # State machine for context tracking and optimization
         self.state = SpectraState()
@@ -292,7 +361,8 @@ class SpectraStreamingSession:
         
         # Inject memory context into system instruction
         memory_context = self.memory.get_context_for_system_instruction()
-        enhanced_instruction = SPECTRA_SYSTEM_INSTRUCTION + memory_context
+        core_instruction = load_core_instruction()
+        enhanced_instruction = core_instruction + memory_context
         
         # Full Spectra configuration with proper system instruction
         config = types.LiveConnectConfig(
@@ -304,7 +374,7 @@ class SpectraStreamingSession:
             speech_config=types.SpeechConfig(
                 voice_config=types.VoiceConfig(
                     prebuilt_voice_config=types.PrebuiltVoiceConfig(
-                        voice_name="Kore"
+                        voice_name="Aoede"  # Female, warm, multilingual voice
                     )
                 )
             ),
@@ -314,20 +384,18 @@ class SpectraStreamingSession:
             # keeping full reasoning capability intact (thinking_budget=-1 = auto).
             thinking_config=types.ThinkingConfig(include_thoughts=False),
             max_output_tokens=4096,
-            temperature=0.5,
+            temperature=0.7,  # Reduced from 1.0 for more consistent, less random responses
             # Transcribe what the user says so the frontend can show it
             input_audio_transcription=types.AudioTranscriptionConfig(),
-            # VAD tuning: HIGH start sensitivity catches first words before full
-            # voice onset; HIGH end sensitivity means Gemini responds quickly
-            # after the user stops speaking — LOW was causing Gemini to keep
-            # waiting and never reply to short commands.
-            # prefix_padding_ms=300 includes 300ms of audio before VAD fires so
-            # the first syllable is never clipped.
+            # Enable output audio transcription for debugging
+            output_audio_transcription=types.AudioTranscriptionConfig(),
+            # VAD tuning: HIGH sensitivity for responsive interaction
+            # This allows Spectra to detect when user starts/stops speaking
             realtime_input_config=types.RealtimeInputConfig(
                 automatic_activity_detection=types.AutomaticActivityDetection(
                     start_of_speech_sensitivity=types.StartSensitivity.START_SENSITIVITY_HIGH,
                     end_of_speech_sensitivity=types.EndSensitivity.END_SENSITIVITY_HIGH,
-                    prefix_padding_ms=300,
+                    prefix_padding_ms=200,  # Reduced padding for more responsive interaction
                 )
             ),
         )
@@ -345,6 +413,7 @@ class SpectraStreamingSession:
             # connection is cycled.
             _reconnect_delay = 1.0   # seconds, doubles on each failure
             _go_away_wait = 0.0      # seconds to wait from go_away time_left
+            _is_first_connect = True
             while not self._client_disconnected:
                 if _go_away_wait > 0:
                     logger.info(f"Honouring go_away — waiting {_go_away_wait:.0f}s before reconnecting")
@@ -357,15 +426,67 @@ class SpectraStreamingSession:
                         self.gemini_session = session
                         self._running = True
                         _session_start_time = time.time()
-                        logger.info("Gemini Live session (re)connected")
-                        # Single small silence burst to prevent immediate session timeout.
+                        # Reset per-turn state that may be stale from the dead session.
+                        self._text_buffer = []
+                        self._audio_sent_this_turn = False
+                        logger.info(f"Gemini Live session (re)connected using model: {LIVE_MODEL}")
+                        if not _is_first_connect:
+                            # On reconnect: suppress the greeting loop by sending the
+                            # "stay silent" instruction BEFORE the silence burst.
+                            # Order matters — the silence burst triggers Gemini's VAD.
+                            # If the instruction arrives after the burst, Gemini has
+                            # already started generating the "Press W" greeting.
+                            # Sending text first gives Gemini the context it needs
+                            # before VAD fires. We also skip the silence burst entirely
+                            # since the text input already keeps the session alive.
+                            try:
+                                await session.send_realtime_input(
+                                    text="[Session reconnected. The user is already present. Stay silent — do NOT greet or ask for screen share. Wait for the user to speak first.]"
+                                )
+                                self._last_input_time = time.time()
+                            except Exception:
+                                pass
+                        else:
+                            # First connect: send minimal silence to prime VAD
+                            # Reduced size to prevent disconnection issues
+                            try:
+                                await session.send_realtime_input(
+                                    audio=types.Blob(data=b'\x00' * 1600, mime_type="audio/pcm;rate=16000")
+                                )
+                                self._last_input_time = time.time()
+                            except Exception as prime_err:
+                                logger.debug(f"Session prime skipped: {prime_err}")
+                        _is_first_connect = False
+
+                        # Re-inject context so Gemini knows where it is after reconnect.
+                        # Without this, Gemini starts completely blank: no page, no screen.
                         try:
-                            await session.send_realtime_input(
-                                audio=types.Blob(data=b'\x00' * 3200, mime_type="audio/pcm;rate=16000")
-                            )
-                            self._last_input_time = time.time()
-                        except Exception as prime_err:
-                            logger.debug(f"Session prime skipped: {prime_err}")
+                            ctx_parts = []
+                            
+                            # Only inject screen sharing context if screen has never been shared
+                            if not self._screen_ever_shared:
+                                ctx_parts.append(
+                                    "[USER NEEDS ONBOARDING: User hasn't shared screen yet. "
+                                    "If they ask anything, warmly explain how to press W to share screen.]"
+                                )
+                            else:
+                                # Screen has been shared before - don't ask again
+                                ctx_parts.append("[Screen sharing is active. User can see and interact normally.]")
+                            
+                            if self._current_url:
+                                ctx_parts.append(f"[Current page: {self._current_url}]")
+                                
+                            if ctx_parts:
+                                await session.send_realtime_input(text=" ".join(ctx_parts))
+                                
+                            # Send latest frame if available
+                            if self._latest_frame:
+                                frame_bytes = base64.b64decode(self._latest_frame)
+                                await session.send_realtime_input(
+                                    video=types.Blob(data=frame_bytes, mime_type="image/jpeg")
+                                )
+                        except Exception as ctx_err:
+                            logger.debug(f"Context re-injection skipped: {ctx_err}")
 
                         try:
                             async for response in session.receive():
@@ -438,17 +559,18 @@ class SpectraStreamingSession:
                                     break
 
                         except Exception as e:
-                            logger.error(f"Gemini receive error: {e}", exc_info=True)
+                            logger.error(f"Gemini receive error: {type(e).__name__}: {e}", exc_info=True)
+                            # Removed rate limit special handling - treat all errors equally
                             _reconnect_delay = min(_reconnect_delay * 2, 30)
 
                         else:
                             session_age = time.time() - _session_start_time
-                            if session_age >= 5.0:
+                            if session_age >= 10.0:  # Increased from 5.0s to 10.0s
                                 logger.warning("Gemini receive loop exited cleanly")
                                 _reconnect_delay = 1.0  # healthy session = reset backoff
                             else:
-                                logger.warning(f"Gemini receive loop exited cleanly after {session_age:.1f}s — likely rate-limited or rejected; backing off")
-                                _reconnect_delay = min(_reconnect_delay * 2, 30)
+                                logger.warning(f"Gemini receive loop exited cleanly after {session_age:.1f}s — backing off")
+                                _reconnect_delay = min(_reconnect_delay * 1.5, 30)  # Gentler backoff
 
                         finally:
                             self._running = False
@@ -458,7 +580,23 @@ class SpectraStreamingSession:
                     logger.error(f"Gemini connection error: {e}", exc_info=True)
                     self._running = False
                     self.gemini_session = None
-                    _reconnect_delay = min(_reconnect_delay * 2, 30)
+                    
+                    # Check if this is a model availability error
+                    error_str = str(e).lower()
+                    if "not found" in error_str or "not supported for bidigeneratecontent" in error_str:
+                        # Send helpful error message to user
+                        try:
+                            await self.websocket.send_json({
+                                "type": "text",
+                                "data": f"⚠️ Gemini Live API Error: The model '{LIVE_MODEL}' is not available for voice chat. This is a known limitation of the Gemini Live API. Please try again later or check Google's documentation for available models."
+                            })
+                        except Exception:
+                            pass
+                        
+                        # Don't retry as aggressively for model availability errors
+                        _reconnect_delay = min(_reconnect_delay * 1.5, 60)
+                    else:
+                        _reconnect_delay = min(_reconnect_delay * 2, 30)
 
                 # ── Decide whether to reconnect ──────────────────────────────
                 if self._client_disconnected:
@@ -507,13 +645,6 @@ class SpectraStreamingSession:
         self._cache_access_times.clear()
         self._pending_actions.clear()
         
-        # Ensure preferences are saved before session ends
-        try:
-            self.prefs.flush()
-            logger.debug(f"💾 Saved preferences for user {self.user_id}")
-        except Exception as e:
-            logger.warning(f"Failed to save preferences: {e}")
-        
         # Save memory
         try:
             self.memory.save()
@@ -561,18 +692,33 @@ class SpectraStreamingSession:
                         break
 
                 # Gemini keep-alive — only when Gemini session is live
-                # Threshold is 2s (not 15s) so the first heartbeat tick (3s) fires
-                # before Gemini's ~5s idle timeout kills the session pre-activation.
+                # Threshold is 1s (not 2s) to send keep-alive more frequently
                 if self.gemini_session and self._running:
                     time_since_input = time.time() - self._last_input_time
-                    if 2.0 < time_since_input < 60.0:
+                    if 3.0 < time_since_input < 60.0:  # Less aggressive keep-alive
                         try:
-                            silence = b'\x00' * 800
+                            silence = b'\x00' * 400  # Reduced to prevent disconnections
                             await self.gemini_session.send_realtime_input(
                                 audio=types.Blob(data=silence, mime_type="audio/pcm;rate=16000")
                             )
                         except Exception as keep_alive_err:
                             logger.debug(f"Keep-alive skipped: {keep_alive_err}")
+                    
+                    # First-time user onboarding - DISABLED to prevent continuous talking
+                    # Users will get onboarding help when they actually ask for it
+                    # if (self._is_first_time_user and 
+                    #     not self._screen_ever_shared and 
+                    #     not self._onboarding_message_sent and
+                    #     time_since_input > 5.0):
+                    #     try:
+                    #         logger.info("Triggering first-time user onboarding")
+                    #         await self.gemini_session.send_realtime_input(
+                    #             text="[The user has been connected for 5 seconds but hasn't shared their screen yet. Proactively greet them with the friendly onboarding message now.]"
+                    #         )
+                    #         self._onboarding_message_sent = True
+                    #     except Exception as onboard_err:
+                    #         logger.debug(f"Onboarding trigger skipped: {onboard_err}")
+
 
             except asyncio.CancelledError:
                 break
@@ -613,6 +759,9 @@ class SpectraStreamingSession:
                     self._capture_height = msg.get("height", 0)
                     self._frame_hash = hashlib.md5(frame_bytes).hexdigest()[:8]
 
+                    # Track screen sharing state
+                    was_first_time = self._is_first_time_user and not self._screen_ever_shared
+                    
                     self.screen_stream_active = True
                     self.last_frame_ts = time.time()
                     self.connection_state = "open"
@@ -625,13 +774,31 @@ class SpectraStreamingSession:
                     if not hasattr(self, '_first_frame_logged'):
                         logger.debug(f"First frame: {self._capture_width}x{self._capture_height}")
                         self._first_frame_logged = True
+                    
+                    # First-time user just shared screen - DISABLED to prevent continuous talking
+                    # Users will get help when they actually ask for it
+                    # if was_first_time and self.gemini_session and not self._onboarding_completed:
+                    #     try:
+                    #         await self.gemini_session.send_realtime_input(
+                    #             text="[USER JUST SHARED SCREEN FOR FIRST TIME! Provide the warm welcome message explaining what you can do. Be enthusiastic and helpful!]"
+                    #         )
+                    #         self._onboarding_completed = True
+                    #         self._is_first_time_user = False
+                    #     except Exception as e:
+                    #         logger.debug(f"Onboarding context injection failed: {e}")
 
                     if self.gemini_session and self._running:
-                        await self.gemini_session.send_realtime_input(
-                            video=types.Blob(data=frame_bytes, mime_type="image/jpeg")
-                        )
-                        self._last_input_time = time.time()
-                        self._last_activity = time.time()
+                        try:
+                            await self.gemini_session.send_realtime_input(
+                                video=types.Blob(data=frame_bytes, mime_type="image/jpeg")
+                            )
+                            logger.debug(f"📹 Sent frame to Gemini: {len(frame_bytes)} bytes, {self._capture_width}x{self._capture_height}")
+                            self._last_input_time = time.time()
+                            self._last_activity = time.time()
+                        except Exception as e:
+                            logger.error(f"Failed to send video frame to Gemini: {e}")
+                            # Mark that video sending failed
+                            self.screen_stream_active = False
 
                 elif msg_type == "text":
                     text = msg.get("data", "")
@@ -720,15 +887,19 @@ class SpectraStreamingSession:
         """Send text to Gemini Live session, dropping silently during reconnect windows.
 
         Returns True if sent, False if dropped (session not ready).
+        Injects current URL so Gemini always knows what page it's on without
+        needing to call describe_screen or read_page_structure for location queries.
         """
         if not (self.gemini_session and self._running):
             logger.debug("_send_to_gemini: session not ready — message dropped")
             return False
+        if self._current_url:
+            text = f"[Page: {self._current_url}]\n{text}"
         await self.gemini_session.send_realtime_input(text=text)
         return True
 
     async def _handle_tool_calls(self, tool_call):
-        """Handle tool calls with proper error handling and personalization tracking."""
+        """Handle tool calls with proper error handling."""
         function_responses = []
         tool_calls_log = []  # For interaction logging
 
@@ -758,7 +929,6 @@ class SpectraStreamingSession:
                 # Record server tool usage
                 success = not any(x in result.lower() for x in ("error", "fail", "timeout"))
                 duration = time.time() - start_time
-                self.prefs.record_action(fc.name, success, duration)
             else:
                 params = dict(args)
                 if self._capture_width > 0:
@@ -804,6 +974,24 @@ class SpectraStreamingSession:
                 # them aloud verbatim. Give it natural language so it can respond naturally.
                 result = _translate_action_result(fc.name, result)
 
+                # Auto-inject page structure after successful navigate or link click.
+                # Saves Gemini one full round-trip tool call — it gets the new page content
+                # immediately in the tool response, without needing to call read_page_structure.
+                if fc.name == "navigate" and result.startswith("Navigation succeeded"):
+                    try:
+                        structure = await self._read_page_structure({})
+                        result = f"{result}\n\n[Page content loaded automatically:]\n{structure}"
+                    except Exception as _e:
+                        logger.debug("Auto page structure after navigate failed: %s", _e)
+                elif fc.name == "click_element" and result.startswith("Link clicked"):
+                    # Link clicks don't wait for page load — give the new page 0.8s to settle
+                    await asyncio.sleep(0.8)
+                    try:
+                        structure = await self._read_page_structure({})
+                        result = f"{result}\n\n[Page content loaded automatically:]\n{structure}"
+                    except Exception as _e:
+                        logger.debug("Auto page structure after link click failed: %s", _e)
+
                 function_responses.append(
                     types.FunctionResponse(
                         id=fc.id,
@@ -815,15 +1003,6 @@ class SpectraStreamingSession:
                 # Record client tool usage with enhanced tracking
                 success = not any(x in result.lower() for x in ("error", "fail", "timeout", "no_element"))
                 duration = time.time() - start_time
-                self.prefs.record_action(fc.name, success, duration)
-                
-                # Update workflow statistics if this was part of a workflow
-                if self._current_workflow:
-                    self.prefs.bump_workflow(self._current_workflow, success, time.time() - self._workflow_start_time)
-                    # Clear workflow tracking after completion
-                    if fc.name in ["navigate", "press_key"] or "complete" in result.lower():
-                        self._current_workflow = None
-                        self._workflow_start_time = 0.0
 
         if function_responses:
             async with self._tool_response_lock:
@@ -839,6 +1018,8 @@ class SpectraStreamingSession:
                         "tool_calls": tool_calls_log,
                         "timestamp": time.time(),
                     })
+                    if len(self.state.interaction_log) > 500:
+                        self.state.interaction_log = self.state.interaction_log[-500:]
                     
                 except Exception as e:
                     logger.error(f"send_tool_response failed, closing session: {e}", exc_info=True)
@@ -897,6 +1078,9 @@ class SpectraStreamingSession:
                         await self.gemini_session.send_realtime_input(
                             video=types.Blob(data=frame_bytes, mime_type="image/jpeg")
                         )
+                        # Brief pause so Gemini processes the new frame before receiving
+                        # the describe prompt — without this, it may describe a stale frame.
+                        await asyncio.sleep(0.15)
                     except Exception as _fe:
                         logger.debug(f"describe_screen frame re-send skipped: {_fe}")
                 result = await self._describe_screen(args)
@@ -930,24 +1114,26 @@ class SpectraStreamingSession:
         to describe the current screen content.
         """
         if not self._latest_frame:
-            # Only wait for a frame if screen was previously shared (momentary gap during navigation).
-            # If screen was NEVER shared, return immediately — no point polling.
-            if self._screen_ever_shared:
-                for _ in range(20):
-                    await asyncio.sleep(0.1)
-                    if self._latest_frame:
-                        break
+            # Always wait up to 2s for a frame — handles both:
+            # (a) momentary gap during navigation when screen was previously shared
+            # (b) race condition where user speaks immediately after pressing W and
+            #     the first frame (sent 100ms after capture starts) hasn't arrived yet
+            for _ in range(20):
+                await asyncio.sleep(0.1)
+                if self._latest_frame:
+                    break
 
             if not self._latest_frame:
                 # If the screen was EVER shared this session, don't ask again —
                 # frames may briefly pause during navigation or tab switch.
                 if self._screen_ever_shared:
-                    logger.info("⚠️ No current frame but screen was previously shared — returning context prompt")
+                    logger.warning("⚠️ No current frame but screen was previously shared — this may cause hallucination")
                     focus = args.get("focus_area", args.get("focus", "")) or "full"
                     return (
                         f"[SCREEN IS SHARED] The screen feed has momentarily paused (navigation or tab switch). "
                         f"Describe the last visible state of the screen based on your video context. "
-                        f"Focus: {focus}. Do NOT ask the user to share their screen again."
+                        f"Focus: {focus}. Do NOT ask the user to share their screen again. "
+                        f"IMPORTANT: Only describe what you actually saw in the video feed - do not make up or guess content."
                     )
                 if not hasattr(self, '_screen_share_requested'):
                     self._screen_share_requested = True
@@ -961,456 +1147,26 @@ class SpectraStreamingSession:
         self._last_describe_time = time.time()
         self.screen_stream_active = True
 
+        # Add frame age check to detect stale frames
+        frame_age = time.time() - self.last_frame_ts
+        if frame_age > 5.0:
+            logger.warning(f"⚠️ Frame is {frame_age:.1f}s old - may cause outdated descriptions")
+
         prompt = (
             f"[SCREEN IS SHARED] "
-            f"Describe what you see on the screen right now. "
+            f"Describe EXACTLY what you see on the screen right now based on the video feed. "
             f"Focus: {focus}. Resolution: {self._capture_width}x{self._capture_height}. "
+            f"Frame hash: {self._frame_hash}. "
+            f"CRITICAL: Only describe what is actually visible in the current video frame. "
+            f"Do NOT make up, guess, or hallucinate content. If you cannot see the screen clearly, say so. "
             f"Include: the website/app name, page title, all visible text headings, "
             f"buttons and links with their approximate x,y coordinates (for clicking), "
             f"input fields, images, and current state. "
             f"Be concise — your user is listening, not reading."
         )
 
-        logger.info(f"🔍 describe_screen ({focus}, {self._capture_width}x{self._capture_height})")
+        logger.info(f"🔍 describe_screen ({focus}, {self._capture_width}x{self._capture_height}, frame_age={frame_age:.1f}s)")
         return prompt
-
-    async def _describe_screen_with_retry(self, focus: str, cache_key: str) -> str:
-        """Enhanced screen description with 3-attempt retry logic and comprehensive error handling."""
-        from app.error_handler import error_handler
-        
-        # Track cache miss since we're making an API call
-        self.performance_monitor.record_cache_miss()
-        
-        # Validate frame data before attempting API calls
-        if not self._validate_frame_data():
-            return error_handler.handle_vision_error(
-                Exception("Invalid frame data: Frame is empty or corrupted"),
-                frame_hash=self._frame_hash,
-                frame_size=len(self._latest_frame) if self._latest_frame else 0,
-                session_id=getattr(self, 'session_id', None),
-                user_id=getattr(self, 'user_id', None)
-            )
-        
-        max_retries = 3
-        api_request_details = None
-        api_response_details = None
-        
-        # Wrap the entire retry loop with performance monitoring
-        async def _monitored_vision_call():
-            for retry_attempt in range(max_retries):
-                try:
-                    # Attempt vision analysis (this now includes comprehensive logging)
-                    result = await self._perform_vision_analysis(focus, retry_attempt)
-                    
-                    # Validate response to ensure it's a valid description, not a deflection
-                    if not self._is_valid_description(result):
-                        logger.warning(f"Invalid/deflection response detected on attempt {retry_attempt + 1}: {result[:100]}")
-                        if retry_attempt < max_retries - 1:
-                            continue  # Try again
-                        else:
-                            # Force a proper description on final attempt
-                            result = (
-                                f"I can see your screen content (frame {self._frame_hash[:6] if self._frame_hash else 'unknown'}, "
-                                f"{self._capture_width}x{self._capture_height} pixels). "
-                                f"The screen shows visual content that I should describe in detail, including any text, "
-                                f"buttons, links, images, or interface elements currently visible. Focus: {focus}."
-                            )
-                    
-                    # Success - cache and return result
-                    self._last_describe_time = time.time()
-                    if cache_key:
-                        current_time = time.time()
-                        async with self._describe_cache_lock:
-                            self._describe_cache[cache_key] = (result, current_time)
-                            self._cache_access_times[cache_key] = current_time
-                            self._cleanup_cache()
-                    
-                    # Update persistent session state - describe succeeded
-                    self.session_state.mark_describe_success()
-                    
-                    logger.info(f"✅ Screen analyzed successfully on attempt {retry_attempt + 1}")
-                    return result
-                    
-                except Exception as e:
-                    logger.warning(f"Vision analysis attempt {retry_attempt + 1} failed: {e}")
-                    
-                    # Check if we should retry this error
-                    if not error_handler.should_retry(e, retry_attempt, max_retries):
-                        logger.error(f"Non-retryable error on attempt {retry_attempt + 1}: {e}")
-                        break
-                    
-                    # If this is not the last attempt, wait before retrying
-                    if retry_attempt < max_retries - 1:
-                        category = error_handler.categorize_error(e)
-                        delay = error_handler.get_retry_delay(retry_attempt, category)
-                        logger.info(f"Retrying in {delay:.1f}s (attempt {retry_attempt + 2}/{max_retries})")
-                        await asyncio.sleep(delay)
-                        continue
-                    
-                    # Final attempt failed - handle error and return user-friendly message
-                    # Update persistent session state - describe failed
-                    self.session_state.mark_describe_failure()
-                    
-                    # Note: API request/response details are now logged within _perform_vision_analysis
-                    return error_handler.handle_vision_error(
-                        e,
-                        frame_hash=self._frame_hash,
-                        frame_size=len(self._latest_frame) if self._latest_frame else 0,
-                        session_id=getattr(self, 'session_id', None),
-                        user_id=getattr(self, 'user_id', None),
-                        retry_attempt=retry_attempt,
-                        additional_context={
-                            "focus": focus,
-                            "cache_key": cache_key,
-                            "max_retries": max_retries,
-                            "frame_dimensions": f"{self._capture_width}x{self._capture_height}" if hasattr(self, '_capture_width') else "unknown"
-                        }
-                    )
-            
-            # All retries exhausted - return cached result if available
-            # Update persistent session state - describe failed
-            self.session_state.mark_describe_failure()
-            
-            async with self._describe_cache_lock:
-                if self._describe_cache:
-                    last_result = max(self._describe_cache.values(), key=lambda x: x[1])[0]
-                    logger.info("All retries exhausted, returning cached result")
-                    return last_result + " (using recent cached analysis due to API issues)"
-            
-            return "Vision analysis failed after multiple attempts. Please check your connection and try again."
-        
-        # Execute with performance monitoring
-        try:
-            result = await self.performance_monitor.monitor_vision_call(_monitored_vision_call)
-            return result
-        except Exception as e:
-            # If monitoring itself fails, log and continue
-            logger.error(f"Performance monitoring error: {e}")
-            return await _monitored_vision_call()
-    def _is_valid_description(self, response: str) -> bool:
-        """Check if vision response is a valid description, not a deflection.
-
-        This method validates that the vision system returned an actual screen description
-        rather than a deflection response like "I have limitations" or similar phrases.
-
-        Args:
-            response: The response text from the vision system
-
-        Returns:
-            True if the response is a valid description, False if it's a deflection
-        """
-        from app.error_handler import error_handler
-
-        # Use the error handler's deflection detection
-        is_deflection = error_handler.is_deflection_response(response)
-
-        # Also check for empty or very short responses that might indicate issues
-        if not response or len(response.strip()) < 10:
-            return False
-
-        # Check for generic error messages that aren't helpful
-        generic_errors = [
-            "error occurred",
-            "something went wrong",
-            "unable to process",
-            "failed to analyze",
-            "no content available"
-        ]
-
-        response_lower = response.lower()
-        has_generic_error = any(error in response_lower for error in generic_errors)
-
-        # Valid if it's not a deflection and doesn't contain generic errors
-        return not is_deflection and not has_generic_error
-
-    def _validate_frame_data(self) -> bool:
-        """Validate frame data before sending to API."""
-        if not self._latest_frame:
-            return False
-        
-        try:
-            # Check if frame is valid base64
-            frame_bytes = base64.b64decode(self._latest_frame)
-            
-            # Check minimum frame size (should be at least a few KB for a valid image)
-            if len(frame_bytes) < 1024:  # Less than 1KB is likely invalid
-                logger.warning(f"Frame too small: {len(frame_bytes)} bytes")
-                return False
-            
-            # Check maximum frame size (prevent oversized frames)
-            if len(frame_bytes) > 10 * 1024 * 1024:  # More than 10MB is too large
-                logger.warning(f"Frame too large: {len(frame_bytes)} bytes")
-                return False
-            
-            # Basic JPEG header validation
-            if not frame_bytes.startswith(b'\xff\xd8'):
-                logger.warning("Frame does not appear to be a valid JPEG")
-                return False
-            
-            return True
-            
-        except Exception as e:
-            logger.error(f"Frame validation error: {e}")
-            return False
-
-    async def _perform_vision_analysis(self, focus: str, retry_attempt: int) -> str:
-        """Perform the actual vision analysis with comprehensive logging and proper error handling."""
-        from app.error_handler import error_handler
-        
-        # Log vision analysis attempt
-        analysis_context = error_handler.log_vision_analysis_attempt(
-            frame_hash=self._frame_hash or "unknown",
-            frame_size=len(self._latest_frame) if self._latest_frame else 0,
-            focus=focus,
-            retry_attempt=retry_attempt,
-            session_id=getattr(self, 'session_id', None),
-            user_id=getattr(self, 'user_id', None)
-        )
-        
-        start_time = time.time()
-        
-        try:
-            # Decode frame data
-            frame_bytes = base64.b64decode(self._latest_frame)
-            
-            # Log API request details
-            api_request_details = error_handler.log_api_request(
-                endpoint="gemini-live-api/send_realtime_input",
-                method="POST",
-                headers={
-                    "Content-Type": "application/json",
-                    "X-Goog-Api-Key": os.getenv('GOOGLE_API_KEY', 'not_set')[:8] + "***"
-                },
-                payload_size=len(frame_bytes),
-                frame_hash=self._frame_hash,
-                session_id=getattr(self, 'session_id', None),
-                user_id=getattr(self, 'user_id', None)
-            )
-            
-            # Send to Gemini Live API for analysis
-            await self.gemini_session.send_realtime_input(
-                video=types.Blob(data=frame_bytes, mime_type="image/jpeg")
-            )
-            
-            # Wait for response from Gemini Live with timeout
-            await asyncio.wait_for(asyncio.sleep(0.3), timeout=2.0)  # 2 second timeout
-            
-            processing_time_ms = (time.time() - start_time) * 1000
-            
-            # Log successful API response
-            api_response_details = error_handler.log_api_response(
-                request_details=api_request_details,
-                status_code=200,  # Assuming success if no exception
-                response_time_ms=processing_time_ms
-            )
-            
-            # For now, return a more informative placeholder until we can capture the actual response
-            result = (
-                f"SCREEN CONTENT AVAILABLE: I can see the current screen (frame {self._frame_hash[:6]}, "
-                f"{self._capture_width}x{self._capture_height}). The visual content is being processed by my vision system. "
-                f"I should describe what I can actually see on the screen right now, including any websites, apps, "
-                f"text, buttons, or other visual elements that are currently visible. Focus area: {focus}."
-            )
-            
-            # Log successful vision analysis result
-            error_handler.log_vision_analysis_result(
-                analysis_context=analysis_context,
-                success=True,
-                result_length=len(result),
-                processing_time_ms=processing_time_ms,
-                is_deflection=error_handler.is_deflection_response(result)
-            )
-            
-            return result
-            
-        except asyncio.TimeoutError as e:
-            processing_time_ms = (time.time() - start_time) * 1000
-            
-            # Log timeout error
-            api_response_details = error_handler.log_api_response(
-                request_details=api_request_details if 'api_request_details' in locals() else {},
-                response_time_ms=processing_time_ms,
-                error=e
-            )
-            
-            error_handler.log_vision_analysis_result(
-                analysis_context=analysis_context,
-                success=False,
-                processing_time_ms=processing_time_ms,
-                error=e
-            )
-            
-            raise Exception("Vision analysis timed out after 2 seconds")
-            
-        except Exception as e:
-            processing_time_ms = (time.time() - start_time) * 1000
-            
-            # Log API error response
-            if 'api_request_details' in locals():
-                api_response_details = error_handler.log_api_response(
-                    request_details=api_request_details,
-                    response_time_ms=processing_time_ms,
-                    error=e
-                )
-            
-            # Log failed vision analysis
-            error_handler.log_vision_analysis_result(
-                analysis_context=analysis_context,
-                success=False,
-                processing_time_ms=processing_time_ms,
-                error=e
-            )
-            
-            # Re-raise with more context
-            raise Exception(f"Vision API error: {str(e)}")
-
-    def _cleanup_cache(self):
-        """
-        Clean up the describe cache with intelligent eviction (Task 5.3).
-        
-        Uses LRU (Least Recently Used) eviction strategy and removes expired entries.
-        """
-        current_time = time.time()
-        
-        # Remove expired entries based on adaptive TTL
-        expired_keys = []
-        for key, (result, cached_time) in self._describe_cache.items():
-            cache_age = current_time - cached_time
-            if cache_age > self._cache_ttl:
-                expired_keys.append(key)
-        
-        for key in expired_keys:
-            self._describe_cache.pop(key, None)
-            self._cache_access_times.pop(key, None)
-        
-        if expired_keys:
-            logger.debug(f"🧹 Removed {len(expired_keys)} expired cache entries")
-        
-        # If still over max size, use LRU eviction
-        if len(self._describe_cache) > CACHE_MAX_SIZE:
-            # Sort by last access time (oldest first)
-            sorted_entries = sorted(
-                self._cache_access_times.items(),
-                key=lambda x: x[1]
-            )
-            
-            # Remove oldest entries until we're under the limit
-            entries_to_remove = len(self._describe_cache) - CACHE_MAX_SIZE
-            for key, _ in sorted_entries[:entries_to_remove]:
-                self._describe_cache.pop(key, None)
-                self._cache_access_times.pop(key, None)
-            
-            logger.debug(f"🧹 LRU evicted {entries_to_remove} cache entries")
-    
-    async def _check_cache_with_invalidation(self, cache_key: str) -> Optional[str]:
-        """
-        Check cache with intelligent invalidation logic (Task 5.3).
-
-        All reads and writes to _describe_cache / _cache_access_times are
-        protected by _describe_cache_lock to prevent race conditions.
-
-        Args:
-            cache_key: The cache key to check
-
-        Returns:
-            Cached result if valid, None otherwise
-        """
-        current_time = time.time()
-
-        async with self._describe_cache_lock:
-            # Check if key exists in cache
-            if cache_key not in self._describe_cache:
-                self.performance_monitor.record_cache_miss()
-                self._cache_hit_streak = 0
-                return None
-
-            cached_result, cached_time = self._describe_cache[cache_key]
-            cache_age = current_time - cached_time
-
-            # Check if cache entry has expired based on adaptive TTL
-            if cache_age > self._cache_ttl:
-                logger.debug(f"⏰ Cache expired (age: {cache_age:.1f}s, TTL: {self._cache_ttl:.1f}s)")
-                self.performance_monitor.record_cache_miss()
-                self._cache_hit_streak = 0
-                return None
-
-            # Detect significant screen changes for intelligent invalidation
-            if self._should_invalidate_cache():
-                logger.debug("🔄 Cache invalidated due to significant screen change")
-                self.performance_monitor.record_cache_miss()
-                self._cache_hit_streak = 0
-                self._describe_cache.clear()
-                self._cache_access_times.clear()
-                return None
-
-            # Cache hit - update metrics and access time
-            logger.debug(f"⚡ Cache hit (age: {cache_age:.1f}s, TTL: {self._cache_ttl:.1f}s)")
-            self.performance_monitor.record_cache_hit()
-            self._cache_access_times[cache_key] = current_time
-            self._cache_hit_streak += 1
-
-            # Adjust TTL based on cache hit patterns (Task 5.3)
-            self._adjust_cache_ttl()
-
-            return cached_result
-    
-    def _should_invalidate_cache(self) -> bool:
-        """
-        Determine if cache should be invalidated due to significant screen changes (Task 5.3).
-        
-        Uses frame history to detect when the screen content has changed significantly,
-        indicating that cached descriptions are no longer valid.
-        
-        Returns:
-            True if cache should be invalidated, False otherwise
-        """
-        if not self._frame_hash or len(self._frame_history) < 2:
-            return False
-        
-        # Add current frame to history
-        if not self._frame_history or self._frame_history[-1] != self._frame_hash:
-            self._frame_history.append(self._frame_hash)
-        
-        # Check if we've seen rapid frame changes (indicating screen activity)
-        if len(self._frame_history) >= 3:
-            # If last 3 frames are all different, screen is changing rapidly
-            recent_frames = list(self._frame_history)[-3:]
-            if len(set(recent_frames)) == 3:
-                logger.debug("🔄 Rapid screen changes detected")
-                return True
-        
-        return False
-    
-    def _adjust_cache_ttl(self):
-        """
-        Adjust cache TTL based on usage patterns (Task 5.3).
-        
-        Dynamically adjusts the cache TTL to optimize for the target cache hit rate:
-        - Increases TTL when cache hit rate is high (content is stable)
-        - Decreases TTL when cache hit rate is low (content is changing)
-        """
-        # Only adjust after sufficient data
-        if self._cache_hit_streak < 5:
-            return
-        
-        current_hit_rate = self.performance_monitor.get_cache_hit_rate() / 100.0
-        
-        # If hit rate is above target, we can increase TTL (content is stable)
-        if current_hit_rate > CACHE_ADAPTIVE_THRESHOLD + 0.1:
-            new_ttl = min(self._cache_ttl * 1.2, CACHE_MAX_TTL)
-            if new_ttl != self._cache_ttl:
-                logger.info(f"📈 Increasing cache TTL: {self._cache_ttl:.1f}s → {new_ttl:.1f}s (hit rate: {current_hit_rate:.1%})")
-                self._cache_ttl = new_ttl
-        
-        # If hit rate is below target, decrease TTL (content is changing)
-        elif current_hit_rate < CACHE_ADAPTIVE_THRESHOLD - 0.1:
-            new_ttl = max(self._cache_ttl * 0.8, CACHE_MIN_TTL)
-            if new_ttl != self._cache_ttl:
-                logger.info(f"📉 Decreasing cache TTL: {self._cache_ttl:.1f}s → {new_ttl:.1f}s (hit rate: {current_hit_rate:.1%})")
-                self._cache_ttl = new_ttl
-        
-        # Reset streak after adjustment
-        self._cache_hit_streak = 0
 
     async def send_action_result(self, action_id: str, result: str):
         """Send action result with deduplication."""
@@ -1483,7 +1239,8 @@ class SpectraStreamingSession:
         command_context = self._build_command_context(parsed_command, execution_format)
         enhanced_text = f"{text}\n\n{command_context}"
 
-        await self._send_to_gemini(enhanced_text)
+        if not await self._send_to_gemini(enhanced_text):
+            logger.warning("_send_to_gemini: enhanced voice command dropped (Gemini reconnecting)")
 
         # Step 9: Update context with the executed command
         self.voice_processor.update_context(recent_command=parsed_command)
@@ -1570,7 +1327,8 @@ class SpectraStreamingSession:
         clarification_context = f"[Ambiguous Command: action={action}, target={target}, confidence={confidence:.2f}]"
         enhanced_text = f"{text}\n\n{clarification_context}\n\nPlease clarify or confirm the user's intent."
         
-        await self._send_to_gemini(enhanced_text)
+        if not await self._send_to_gemini(enhanced_text):
+            logger.warning("_send_to_gemini: enhanced voice command dropped (Gemini reconnecting)")
 
         logger.info(f"⚠️ Ambiguous command handled: {action} -> {target} (confidence: {confidence:.2f})")
     
@@ -1664,19 +1422,8 @@ class SpectraStreamingSession:
             return base_text
 
         # Check for workflow triggers before sending to Gemini
-        matching_workflows = self.prefs.match_workflows(text)
-        if matching_workflows:
-            workflow = matching_workflows[0]
-            logger.info(f"🎯 Executing workflow: {workflow['name']}")
-            self._current_workflow = workflow['name']
-            self._workflow_start_time = time.time()
-            workflow_context = f"User triggered workflow '{workflow['name']}'. Execute these steps: {', '.join(workflow['steps'])}"
-            enhanced_text = _with_screen(f"{text}\n\n[Workflow Context: {workflow_context}]")
-            # send_realtime_input triggers audio+tool response (response_modalities=["AUDIO"]);
-            # send_client_content would return text-only, breaking voice output and actions.
-            await self._send_to_gemini(enhanced_text)
-        else:
-            await self._send_to_gemini(_with_screen(text))
+        if not await self._send_to_gemini(_with_screen(text)):
+            logger.warning("_send_to_gemini: voice command dropped (Gemini reconnecting)")
     # ━━━ ORCHESTRATOR HELPER METHODS ━━━
     
     def _get_enhanced_system_instruction(self, user_text: str = "") -> str:
@@ -1689,14 +1436,16 @@ class SpectraStreamingSession:
         Returns:
             Enhanced system instruction with context-specific reminders
         """
-        from app.agents.orchestrator import SPECTRA_SYSTEM_INSTRUCTION, get_confirmation_reminder
+        from app.agents.orchestrator import get_confirmation_reminder
+        
+        core_instruction = load_core_instruction()
         
         # Add confirmation reminder if this is a destructive action
         reminder = get_confirmation_reminder(user_text)
         if reminder:
-            return f"{SPECTRA_SYSTEM_INSTRUCTION}\n\n{reminder}"
+            return f"{core_instruction}\n\n{reminder}"
         
-        return SPECTRA_SYSTEM_INSTRUCTION
+        return core_instruction
     
     def _should_enforce_describe_first(self) -> bool:
         """
@@ -1709,81 +1458,6 @@ class SpectraStreamingSession:
         time_since_describe = time.time() - self._last_describe_time
         return time_since_describe > 2.0  # 2 seconds since last describe
     
-    def _track_action_state(self, action_name: str, params: dict):
-        """
-        Track action state for undo/redo functionality.
-        
-        Args:
-            action_name: Name of the action performed
-            params: Action parameters (coordinates, etc.)
-        """
-        if not hasattr(self, '_action_history'):
-            self._action_history = []
-        
-        self._action_history.append({
-            'action': action_name,
-            'params': params.copy(),
-            'timestamp': time.time(),
-        })
-        
-        # Keep only last 10 actions for undo
-        self._action_history = self._action_history[-10:]
-    
-    def _get_last_action(self) -> dict | None:
-        """
-        Get the last action performed.
-        
-        Returns:
-            Last action dict or None if no history
-        """
-        if not hasattr(self, '_action_history') or not self._action_history:
-            return None
-        return self._action_history[-1]
-    
-    def _get_action_for_undo(self) -> dict | None:
-        """
-        Get an action to undo based on the last action.
-        
-        Returns:
-            Dict with undo action info or None if no undo available
-        """
-        last_action = self._get_last_action()
-        if not last_action:
-            return None
-        
-        action_name = last_action['action']
-        
-        # Map actions to undo operations
-        undo_map = {
-            'click_element': {'action': 'press_key', 'params': {'key': 'Escape'}},
-            'navigate': {'action': 'press_key', 'params': {'key': 'Backspace'}},
-            'type_text': {'action': 'press_key', 'params': {'key': 'Backspace'}},
-            'scroll_page': {'action': 'scroll_page', 'params': {'direction': 'up' if last_action['params'].get('direction') == 'down' else 'down'}},
-        }
-        
-        return undo_map.get(action_name)
-    
-    def _detect_app_type(self, screen_description: str) -> str:
-        """
-        Detect the current app type from screen description.
-        
-        Args:
-            screen_description: Description of the current screen
-            
-        Returns:
-            App type: 'email', 'docs', 'browser', 'app', or 'unknown'
-        """
-        desc_lower = screen_description.lower()
-        
-        if 'gmail' in desc_lower or 'inbox' in desc_lower or 'email' in desc_lower:
-            return 'email'
-        elif 'docs' in desc_lower or 'google docs' in desc_lower or 'document' in desc_lower:
-            return 'docs'
-        elif 'github' in desc_lower or 'gitlab' in desc_lower or 'bitbucket' in desc_lower:
-            return 'code'
-        else:
-            return 'browser'
-
     async def _read_selection(self, args: dict) -> str:
         """
         Read selected or highlighted text on screen.

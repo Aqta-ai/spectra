@@ -18,14 +18,16 @@ if (isSpectraPage()) {
   window.postMessage({ source: 'spectra-extension', type: 'ready' }, '*');
   
   window.addEventListener('message', (event) => {
+    if (!SPECTRA_ORIGINS.includes(event.origin)) return;
+
     if (event.data?.source === 'spectra' && event.data?.action === 'ping') {
-      window.postMessage({ 
-        source: 'spectra-extension', 
+      window.postMessage({
+        source: 'spectra-extension',
         type: 'ready',
-        messageId: event.data.messageId 
+        messageId: event.data.messageId
       }, '*');
     }
-    
+
     if (event.data?.source === 'spectra' && event.data?.action && event.data.action !== 'ping') {
       chrome.runtime.sendMessage({
         source: 'spectra-content',
@@ -98,11 +100,11 @@ function scaleCoordinates(x, y, captureWidth, captureHeight) {
   const vw = window.innerWidth;
   const vh = window.innerHeight;
   if (!captureWidth || !captureHeight || captureWidth <= 0 || captureHeight <= 0) {
-    return { x, y };
+    return { x: Math.max(0, Math.min(vw - 1, x)), y: Math.max(0, Math.min(vh - 1, y)) };
   }
   return {
-    x: Math.round(x * (vw / captureWidth)),
-    y: Math.round(y * (vh / captureHeight)),
+    x: Math.max(0, Math.min(vw - 1, Math.round(x * (vw / captureWidth)))),
+    y: Math.max(0, Math.min(vh - 1, Math.round(y * (vh / captureHeight)))),
   };
 }
 
@@ -161,22 +163,31 @@ function findElementByDescription(description) {
   if (!want) return null;
   const wantNorm = normalizeDesc(want);
 
-  // Include inputs/selects/textareas so description-based clicks can target form fields
+  // Include more interactive elements: articles, divs with click handlers, etc.
   const candidates = document.querySelectorAll(
-    'a, button, [role="button"], [role="link"], [role="tab"], [role="menuitem"], input[type="submit"], input[type="button"], input:not([type="hidden"]), textarea, select, [role="textbox"], [role="searchbox"], [role="combobox"], [onclick], [tabindex]:not([tabindex="-1"]), summary, label'
+    'a, button, [role="button"], [role="link"], [role="tab"], [role="menuitem"], [role="article"], article, input[type="submit"], input[type="button"], input:not([type="hidden"]), textarea, select, [role="textbox"], [role="searchbox"], [role="combobox"], [onclick], [tabindex]:not([tabindex="-1"]), summary, label, h1, h2, h3, h4, h5, h6, [class*="card"], [class*="item"], [class*="link"]'
   );
 
   let bestMatch = null;
   let bestScore = 0;
 
   for (const el of candidates) {
+    // Get text content but limit to direct children to avoid matching parent containers
+    const directText = Array.from(el.childNodes)
+      .filter(n => n.nodeType === Node.TEXT_NODE)
+      .map(n => n.textContent.trim())
+      .join(' ')
+      .toLowerCase();
+    
     const texts = [
       (el.textContent || '').trim().toLowerCase(),
+      directText,
       (el.getAttribute('aria-label') || '').trim().toLowerCase(),
       (el.getAttribute('title') || '').trim().toLowerCase(),
       (el.getAttribute('placeholder') || '').trim().toLowerCase(),
       (el.value || '').trim().toLowerCase(),
       (el.getAttribute('alt') || '').trim().toLowerCase(),
+      (el.getAttribute('href') || '').trim().toLowerCase(),
     ];
 
     for (const raw of texts) {
@@ -191,16 +202,26 @@ function findElementByDescription(description) {
       let score = 0;
       for (const [tv, wv] of [[t, want], [tNorm, wantNorm]]) {
         let s = 0;
+        // Substring match
         if (tv.includes(wv)) s = wv.length / tv.length;
         else if (wv.includes(tv) && tv.length > 2) s = tv.length / wv.length * 0.9;
+        // Word-based matching for better partial matches
+        else {
+          const tvWords = tv.split(/\s+/);
+          const wvWords = wv.split(/\s+/);
+          const matchingWords = wvWords.filter(w => tvWords.some(tw => tw.includes(w) || w.includes(tw)));
+          if (matchingWords.length > 0) {
+            s = matchingWords.length / wvWords.length * 0.7;
+          }
+        }
         if (s > score) score = s;
       }
       if (score > bestScore) { bestScore = score; bestMatch = el; }
     }
   }
 
-  // Lower threshold: 0.15 catches "Submit" vs "submit button for the login form"
-  return bestScore > 0.15 ? bestMatch : null;
+  // Lower threshold: 0.1 to catch more partial matches
+  return bestScore > 0.1 ? bestMatch : null;
 }
 
 function findInputByDescription(description) {
@@ -208,8 +229,8 @@ function findInputByDescription(description) {
   const want = description.trim().toLowerCase();
   if (!want) return null;
   
-  const inputs = document.querySelectorAll('input:not([type="hidden"]):not([type="submit"]):not([type="button"]), textarea, [contenteditable="true"], [role="textbox"], [role="searchbox"]');
-  
+  const inputs = document.querySelectorAll('input:not([type="hidden"]):not([type="submit"]):not([type="button"]), textarea, [contenteditable="true"], [role="textbox"], [role="searchbox"], [role="combobox"]');
+
   for (const el of inputs) {
     const attrs = [
       (el.getAttribute('placeholder') || '').toLowerCase(),
@@ -368,7 +389,7 @@ async function executeType(text, x, y, description, captureWidth, captureHeight)
   if (!element || !isInput(element)) return 'no_input_found';
 
   element.focus();
-  await sleep(30);
+  await sleep(15);
   
   // Clear existing content
   if (element.isContentEditable) {
@@ -413,29 +434,34 @@ async function executeType(text, x, y, description, captureWidth, captureHeight)
 async function executeScroll(direction, amount = null) {
   const dir = (direction || 'down').toString().toLowerCase();
   const viewportH = window.innerHeight || 800;
-  const scrollAmount = amount || Math.floor(viewportH * 0.75);
+  const scrollAmount = (amount !== null && amount !== undefined) ? amount : Math.floor(viewportH * 0.75);
   const delta = dir === 'up' ? -scrollAmount : scrollAmount;
-
-  const beforeY = window.scrollY;
 
   const docEl = document.documentElement;
   const body = document.body;
 
-  // Primary: window.scrollBy (drives documentElement — don't also scroll docEl, that double-scrolls)
-  window.scrollBy({ top: delta, left: 0, behavior: 'smooth' });
-  
-  // SPA containers
+  const beforeY = window.scrollY;
+
+  // SPA/overflow containers (Google News, SPAs with custom scroll divs) take priority.
+  // If a scrollable container exists, scroll it; otherwise scroll the window.
+  // Scrolling both causes double-movement on SPAs.
   const container = findScrollableContainer();
+  const beforeContainerY = container ? container.scrollTop : 0;
   if (container) {
-    container.scrollBy({ top: delta, behavior: 'smooth' });
+    container.scrollBy({ top: delta, behavior: 'instant' });
+  } else {
+    // Use 'instant' so scroll completes synchronously — smooth animation takes
+    // 300-500ms and the 50ms sleep below would report zero movement.
+    window.scrollBy({ top: delta, left: 0, behavior: 'instant' });
   }
 
-  await sleep(200);
-  
+  await sleep(50);
+
   const afterY = window.scrollY;
-  const moved = Math.abs(afterY - beforeY);
-  
-  // Keyboard fallback if nothing moved
+  const afterContainerY = container ? container.scrollTop : 0;
+  const moved = Math.abs(afterY - beforeY) + Math.abs(afterContainerY - beforeContainerY);
+
+  // Keyboard fallback only if truly nothing moved anywhere
   if (moved < 5) {
     const key = dir === 'up' ? 'PageUp' : 'PageDown';
     const activeEl = document.activeElement || document.body;
@@ -445,13 +471,13 @@ async function executeScroll(direction, amount = null) {
   }
 
   const scrollHeight = Math.max(docEl.scrollHeight, body.scrollHeight);
-  const progress = scrollHeight > viewportH 
-    ? Math.round((window.scrollY / (scrollHeight - viewportH)) * 100) 
+  const progress = scrollHeight > viewportH
+    ? Math.round((window.scrollY / (scrollHeight - viewportH)) * 100)
     : 100;
 
   if (dir === 'down' && progress >= 98) return 'scrolled_down_reached_bottom';
   if (dir === 'up' && window.scrollY < 10) return 'scrolled_up_reached_top';
-  
+
   return `scrolled_${dir}_${scrollAmount}px_at_${progress}pct`;
 }
 
@@ -489,6 +515,11 @@ async function executeKey(key) {
       try { form.requestSubmit(); } catch (_) {
         try { form.submit(); } catch (__) {}
       }
+    } else if (element.tagName === 'INPUT' || element.getAttribute('role') === 'searchbox' || element.getAttribute('role') === 'combobox') {
+      // No form wrapper (Google News, Angular SPAs) — dispatch a real Enter keydown/up
+      // on the element itself so the framework's keydown listener triggers navigation.
+      element.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true }));
+      element.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true }));
     }
   }
 
@@ -599,8 +630,9 @@ function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 function isInput(element) {
   if (!element) return false;
   const tag = element.tagName;
-  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || element.isContentEditable || 
-         element.getAttribute('role') === 'textbox' || element.getAttribute('role') === 'searchbox';
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || element.isContentEditable ||
+         element.getAttribute('role') === 'textbox' || element.getAttribute('role') === 'searchbox' ||
+         element.getAttribute('role') === 'combobox';
 }
 
 function isScrollable(el) {

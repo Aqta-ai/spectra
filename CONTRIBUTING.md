@@ -90,7 +90,7 @@ Examples:
 ```
 feat: add voice confirmation sound
 fix: resolve WebSocket race condition
-docs: update demo script
+docs: update documentation
 a11y: improve screen reader announcements
 ```
 
@@ -142,7 +142,6 @@ spectra/
 - **Additional themes** — High contrast, dark mode variants
 - **Keyboard shortcut customisation**
 - **Session history** — Review past interactions
-- **Demo mode** — Pre-loaded screenshots for demos
 - **Screenshot preview** — Show what Spectra sees
 
 ---

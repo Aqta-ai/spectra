@@ -23,21 +23,28 @@ echo ""
 echo -e "${YELLOW}✅ Checking prerequisites...${NC}"
 
 if ! command -v python3 &>/dev/null; then
-    echo -e "${RED}❌ Python 3 not found. Please install Python 3.11+${NC}"; exit 1
+    echo -e "${RED}❌ Python 3 not found. Please install Python 3.8+${NC}"; exit 1
 fi
-echo "  ✓ Python 3 found"
+echo "  ✓ Python 3 found ($(python3 --version))"
 
 if ! command -v node &>/dev/null; then
-    echo -e "${RED}❌ Node.js not found. Please install Node.js 20+${NC}"; exit 1
+    echo -e "${RED}❌ Node.js not found. Please install Node.js 18+${NC}"; exit 1
 fi
-echo "  ✓ Node.js found"
+echo "  ✓ Node.js found ($(node --version))"
 
-if [ ! -f "backend/.env" ]; then
+# Check API key configuration
+if [ -f "backend/.env" ]; then
+    if grep -q "GOOGLE_API_KEY=" backend/.env && ! grep -q "GOOGLE_API_KEY=$" backend/.env && ! grep -q "GOOGLE_API_KEY=\"\"" backend/.env; then
+        echo "  ✓ API key configured"
+    else
+        echo -e "${YELLOW}⚠️  GOOGLE_API_KEY not set in backend/.env${NC}"
+        echo "     Add your Google AI Studio API key to backend/.env"
+    fi
+else
     echo -e "${RED}❌ backend/.env not found${NC}"
     echo "   cp backend/.env.example backend/.env  — then add your GOOGLE_API_KEY"
     exit 1
 fi
-echo "  ✓ backend/.env found"
 
 if [ ! -f "frontend/.env.local" ]; then
     echo -e "${YELLOW}⚠️  frontend/.env.local not found, creating from example...${NC}"
@@ -125,13 +132,17 @@ fi
 echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e "  🌐 Open: ${GREEN}http://localhost:3000${NC}"
 echo -e "  🔌 Backend: ${GREEN}http://localhost:${BACKEND_PORT}${NC}"
-echo -e "  Say ${CYAN}\"Hey Spectra\"${NC} to begin"
+echo -e "  🎤 Say ${CYAN}\"Hello Spectra\"${NC} or ${CYAN}\"Describe the screen\"${NC} to begin"
 echo -e ""
-echo -e "  Logs:"
+echo -e "  📊 Monitor:"
+echo -e "    Health: curl http://localhost:${BACKEND_PORT}/health"
+echo -e "    Vision: curl http://localhost:${BACKEND_PORT}/vision-debug"
+echo -e ""
+echo -e "  📝 Logs:"
 echo -e "    tail -f $BACKEND_LOG"
 echo -e "    tail -f $FRONTEND_LOG"
 echo -e ""
-echo -e "  Stop: ${YELLOW}./stop.sh${NC}  or  Ctrl+C"
+echo -e "  🛑 Stop: ${YELLOW}./stop.sh${NC}  or  Ctrl+C"
 echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 
 # Trap Ctrl+C to kill both

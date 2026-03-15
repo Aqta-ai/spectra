@@ -18,6 +18,8 @@ const SPECTRA_ORIGINS = [
 // Cache the last known good target tab to avoid repeated queries
 let cachedTargetTabId = null;
 let cachedTargetTabUrl = null;
+let cachedTargetTabTimestamp = 0;
+const CACHE_TTL_MS = 30000; // 30 seconds — prevents stale tab after user switches context
 
 function isSpectraTab(tab) {
   if (!tab?.url) return false;
@@ -111,15 +113,23 @@ async function sendToTab(tabId, message, retries = 3) {
 async function findTargetTab(spectraSenderId) {
   // Check if cached tab is still valid
   if (cachedTargetTabId) {
-    try {
-      const tab = await chrome.tabs.get(cachedTargetTabId);
-      if (tab && tab.id !== spectraSenderId && !isSpectraTab(tab) && !isRestrictedUrl(tab.url)) {
-        return tab;
-      }
-    } catch {
-      // Tab no longer exists
+    // Expire cache after 30s to handle user switching browser context
+    if (Date.now() - cachedTargetTabTimestamp > CACHE_TTL_MS) {
       cachedTargetTabId = null;
       cachedTargetTabUrl = null;
+      cachedTargetTabTimestamp = 0;
+    } else {
+      try {
+        const tab = await chrome.tabs.get(cachedTargetTabId);
+        if (tab && tab.id !== spectraSenderId && !isSpectraTab(tab) && !isRestrictedUrl(tab.url)) {
+          return tab;
+        }
+      } catch {
+        // Tab no longer exists
+        cachedTargetTabId = null;
+        cachedTargetTabUrl = null;
+        cachedTargetTabTimestamp = 0;
+      }
     }
   }
 
@@ -141,6 +151,7 @@ async function findTargetTab(spectraSenderId) {
   if (target) {
     cachedTargetTabId = target.id;
     cachedTargetTabUrl = target.url;
+    cachedTargetTabTimestamp = Date.now();
   }
 
   return target;
@@ -151,6 +162,7 @@ chrome.tabs.onRemoved.addListener((tabId) => {
   if (tabId === cachedTargetTabId) {
     cachedTargetTabId = null;
     cachedTargetTabUrl = null;
+    cachedTargetTabTimestamp = 0;
   }
 });
 
@@ -158,11 +170,13 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 chrome.runtime.onSuspend.addListener(() => {
   cachedTargetTabId = null;
   cachedTargetTabUrl = null;
+  cachedTargetTabTimestamp = 0;
 });
 
 chrome.runtime.onStartup.addListener(() => {
   cachedTargetTabId = null;
   cachedTargetTabUrl = null;
+  cachedTargetTabTimestamp = 0;
 });
 
 // BULLETPROOF: Re-inject content scripts after navigation completes

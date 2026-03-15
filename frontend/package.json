@@ -2,6 +2,8 @@
   "name": "spectra-frontend",
   "version": "0.1.0",
   "private": true,
+  "author": "Anya Chueayen",
+  "description": "AI screen reader and voice assistant frontend",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

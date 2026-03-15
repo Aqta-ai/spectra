@@ -295,6 +295,18 @@ export function useSpectraSocket(options: SpectraSocketOptions) {
 
   const connect = useCallback(() => {
     return new Promise<void>((resolve, reject) => {
+      // Close any existing WebSocket before opening a new one.
+      // handleStop() keeps the WS open (intentional — avoids latency on quick
+      // Q-stop + Q-start). Without this guard, each Q-start opens a second WS
+      // while the first stays alive → two backend sessions → duplicate log lines,
+      // double audio, and wasted Gemini quota.
+      if (wsRef.current && wsRef.current.readyState !== WebSocket.CLOSED) {
+        const old = wsRef.current;
+        wsRef.current = null;
+        old.onclose = null; // prevent scheduleReconnect firing for this intentional close
+        old.close(1000);
+      }
+
       intentionalCloseRef.current = false;
       reconnectAttemptRef.current = 0;
 

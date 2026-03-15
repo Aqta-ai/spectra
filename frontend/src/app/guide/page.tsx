@@ -154,7 +154,7 @@ export default function GuidePage() {
           <img src="https://deploy.cloud.run/button.svg" alt="Run on Google Cloud" className="h-7" />
         </a>
         <div>
-          Built by Anya, Aqta
+          Spectra
           {" · "}
           <Link href="/" className="hover:text-white/50 transition-colors">Spectra</Link>
           {" · "}
