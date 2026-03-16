@@ -90,7 +90,6 @@ jobs:
             --min-instances=1
             --max-instances=10
           env_vars: |
-            GOOGLE_API_KEY=${{ secrets.GOOGLE_API_KEY }}
             LOG_LEVEL=WARNING
             ALLOWED_ORIGINS=https://spectra.aqta.ai
 
