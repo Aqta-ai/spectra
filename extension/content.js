@@ -157,14 +157,20 @@ async function handleAction(message) {
 // Role words Gemini appends to descriptions — strip before matching
 const ROLE_WORDS = /\b(button|link|icon|image|field|input|element|tab|menu item|checkbox|radio|toggle|dropdown|select|option|label|for the|in the|at the|on the|of the)\b/g;
 
+// Normalise apostrophes and quotes so "What's" matches "What's" (unicode)
+function normalizeApostrophes(s) {
+  return s.replace(/[\u2018\u2019\u201A\u201B\u2032]/g, "'").replace(/[\u201C\u201D\u201E\u2033]/g, '"');
+}
+
 function normalizeDesc(s) {
-  return s.replace(ROLE_WORDS, '').replace(/\s+/g, ' ').trim();
+  return normalizeApostrophes(s.replace(ROLE_WORDS, '').replace(/\s+/g, ' ').trim());
 }
 
 function findElementByDescription(description) {
   if (!description || typeof description !== 'string') return null;
-  const want = description.trim().toLowerCase();
-  if (!want) return null;
+  const raw = description.trim();
+  if (!raw) return null;
+  const want = normalizeApostrophes(raw).toLowerCase();
   const wantNorm = normalizeDesc(want);
 
   // Include more interactive elements: articles, divs with click handlers, etc.
@@ -196,7 +202,7 @@ function findElementByDescription(description) {
 
     for (const raw of texts) {
       if (!raw) continue;
-      const t = raw;
+      const t = normalizeApostrophes(raw);
       const tNorm = normalizeDesc(t);
 
       // Exact match on either raw or normalised
@@ -224,8 +230,17 @@ function findElementByDescription(description) {
     }
   }
 
-  // Lower threshold: 0.1 to catch more partial matches
-  return bestScore > 0.1 ? bestMatch : null;
+  if (bestScore > 0.1) return bestMatch;
+
+  // Long descriptions (e.g. full headline): try first N words so "Wired headphone sales are exploding" matches
+  if (want.length > 45) {
+    const firstWords = want.split(/\s+/).slice(0, 6).join(' ');
+    if (firstWords.length >= 10) {
+      const shortMatch = findElementByDescription(firstWords);
+      if (shortMatch) return shortMatch;
+    }
+  }
+  return null;
 }
 
 function findInputByDescription(description) {
@@ -265,7 +280,7 @@ async function executeClick(x, y, description, captureWidth, captureHeight) {
   try {
     let element = null;
     let usedFallback = false;
-    const hasCoords = typeof x === 'number' && typeof y === 'number' && (x > 0 || y > 0);
+    const hasCoords = typeof x === 'number' && typeof y === 'number' && !Number.isNaN(x) && !Number.isNaN(y);
 
     // Strategy 1: Description-first (preferred — coordinates from Gemini are often approximate)
     if (description) {
@@ -280,19 +295,26 @@ async function executeClick(x, y, description, captureWidth, captureHeight) {
     // Strategy 2: Coordinates (when description didn't match, or no description given)
     if (!element && hasCoords) {
       const scaled = scaleCoordinates(x, y, captureWidth, captureHeight);
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const clampX = (px) => Math.max(0, Math.min(vw - 1, px));
+      const clampY = (py) => Math.max(0, Math.min(vh - 1, py));
 
-      // Try exact point first, then spiral outward up to 30px to handle coordinate drift
+      // Try exact point first, then spiral outward up to 30px to handle coordinate drift.
+      // Clamp all probe points to viewport so elementFromPoint never gets out-of-scope coords.
       const offsets = [0, 10, 20, 30];
       outer: for (const r of offsets) {
         const probes = r === 0
           ? [[0, 0]]
           : [[-r,0],[r,0],[0,-r],[0,r],[-r,-r],[r,-r],[-r,r],[r,r]];
         for (const [dx, dy] of probes) {
-          const el = document.elementFromPoint(scaled.x + dx, scaled.y + dy);
+          const px = clampX(scaled.x + dx);
+          const py = clampY(scaled.y + dy);
+          const el = document.elementFromPoint(px, py);
           if (el && el !== document.body && el !== document.documentElement) {
             element = el;
             usedFallback = true;
-            showClickFeedback(scaled.x + dx, scaled.y + dy, element, description);
+            showClickFeedback(px, py, element, description);
             break outer;
           }
         }
@@ -351,8 +373,8 @@ async function executeClick(x, y, description, captureWidth, captureHeight) {
 async function executeType(text, x, y, description, captureWidth, captureHeight) {
   let element = null;
   
-  // Strategy 1: Use coordinates
-  if (typeof x === 'number' && typeof y === 'number' && (x > 0 || y > 0)) {
+  // Strategy 1: Use coordinates (0,0 is valid)
+  if (typeof x === 'number' && typeof y === 'number' && !Number.isNaN(x) && !Number.isNaN(y)) {
     const scaled = scaleCoordinates(x, y, captureWidth, captureHeight);
     element = document.elementFromPoint(scaled.x, scaled.y);
     if (element && isInput(element)) {

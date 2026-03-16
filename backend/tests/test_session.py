@@ -99,7 +99,7 @@ async def test_session_initialization(mock_websocket):
     assert session.user_id == "test-user"
     assert session._running is False
     assert session._latest_frame is None
-    assert session._action_queue is not None
+    assert isinstance(session._action_pending, dict)
     assert session._describe_cache == {}
 
 
@@ -356,27 +356,20 @@ async def test_handle_tool_calls_client_action(mock_websocket, mock_gemini_sessi
     tool_call = MagicMock()
     tool_call.function_calls = [fc]
     
-    # Mock action result
-    async def mock_receive():
-        return json.dumps({
-            "type": "action_result",
-            "id": "action123",
-            "result": "success"
-        })
-    
-    mock_websocket.receive_text = mock_receive
-    
-    # Add action result to queue
-    await session._action_queue.put({
-        "type": "action_result",
-        "id": "action123",
-        "result": "success"
-    })
-    
+    # Resolve the action future once the action is sent (match by id)
+    async def inject_action_result():
+        await asyncio.sleep(0.05)
+        action_msg = next((m for m in mock_websocket.messages if m.get("type") == "action"), None)
+        if action_msg and session._action_pending:
+            aid = action_msg.get("id")
+            if aid and aid in session._action_pending:
+                session._action_pending[aid].set_result({"id": aid, "result": "success"})
+
     with patch('app.streaming.session.genai.Client') as mock_client:
         mock_client.return_value.models.generate_content.return_value = MagicMock(text="Screen")
-        
-        await session._handle_tool_calls(tool_call)
+        t = asyncio.create_task(session._handle_tool_calls(tool_call))
+        asyncio.create_task(inject_action_result())
+        await t
     
     # Check action was sent to client
     action_sent = any(m.get("type") == "action" for m in mock_websocket.messages)

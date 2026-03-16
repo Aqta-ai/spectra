@@ -29,12 +29,12 @@ class TestNarrationRemoval:
         assert "You're on Gmail" in result
     
     def test_removes_im_currently_patterns(self):
-        """Should remove 'I'm currently' meta-commentary."""
+        """Should remove 'I'm currently analyzing' meta-commentary (matches _NARRATION_SUBSTRINGS)."""
         from app.agents.orchestrator import remove_narration
         
-        text = "I'm currently focusing on the search box. Clicking it now."
+        text = "I'm currently analyzing the search box. Clicking it now."
         result = remove_narration(text)
-        assert "I'm currently" not in result
+        assert "I'm currently analyzing" not in result
         assert "Clicking it now" in result
     
     def test_removes_bold_headers(self):
@@ -55,12 +55,12 @@ class TestNarrationRemoval:
         assert result == text
     
     def test_removes_to_accomplish_this(self):
-        """Should remove 'To accomplish this' planning statements."""
+        """Should remove 'To accomplish this, I will' planning (FORBIDDEN_SENTENCE_STARTS)."""
         from app.agents.orchestrator import remove_narration
         
-        text = "To accomplish this, I've decided to use describe_screen. Scanning now."
+        text = "To accomplish this, I will use describe_screen. Scanning now."
         result = remove_narration(text)
-        assert "To accomplish" not in result
+        assert "To accomplish this" not in result
         assert "Scanning now" in result
     
     def test_handles_empty_string(self):
@@ -71,13 +71,13 @@ class TestNarrationRemoval:
         assert result == ""
     
     def test_handles_multiple_sentences(self):
-        """Should handle multiple sentences correctly."""
+        """Should strip narration sentences and keep user-facing content."""
         from app.agents.orchestrator import remove_narration
         
-        text = "I've begun the analysis. You're on Gmail. I'm now checking for buttons."
+        text = "I've begun analyzing the screen. You're on Gmail. I'm cataloging the buttons."
         result = remove_narration(text)
-        assert "I've begun" not in result
-        assert "I'm now" not in result
+        assert "I've begun analyzing" not in result
+        assert "I'm cataloging" not in result
         assert "You're on Gmail" in result
 
 

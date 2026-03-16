@@ -401,7 +401,7 @@ export default function Home() {
     onFrame: (base64Jpeg, width, height) => {
       if (isConnected && isActive) sendFrame(base64Jpeg, width, height);
     },
-    fps: 2,
+    fps: 3,
   });
 
   useVoiceActivation({
@@ -509,15 +509,29 @@ export default function Home() {
     await connect();
   }, [connect]);
 
-  // Keyboard shortcuts
+  // Keyboard shortcuts: use e.code (KeyQ, KeyW) so physical keys work on any keyboard layout
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      const key = e.key.toLowerCase();
-      // Q and Esc are reserved shortcuts , work even when text input is focused
-      if (key === "q") { e.preventDefault(); e.stopPropagation(); handleToggle(); return; }
-      if (key === "escape" && isActive) { e.preventDefault(); e.stopPropagation(); handleStop(); return; }
+      // Q and W are reserved — always handle them, even when focus is in an input
+      if (e.code === "KeyQ") {
+        e.preventDefault();
+        e.stopPropagation();
+        handleToggle();
+        return;
+      }
+      if (e.code === "KeyW") {
+        e.preventDefault();
+        e.stopPropagation();
+        handleShareScreen();
+        return;
+      }
+      if (e.key.toLowerCase() === "escape" && isActive) {
+        e.preventDefault();
+        e.stopPropagation();
+        handleStop();
+        return;
+      }
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      if (key === "w") { e.preventDefault(); e.stopPropagation(); handleShareScreen(); }
     };
     document.addEventListener("keydown", handleKeyDown, true);
     return () => document.removeEventListener("keydown", handleKeyDown, true);
@@ -592,7 +606,7 @@ export default function Home() {
               <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${extensionReady ? "bg-green-400" : "bg-amber-400 animate-pulse"}`} />
               {extensionReady ? <span className="hidden sm:inline">Extension</span> : (
                 <a
-                  href="https://github.com/Aqta-ai/spectra#browser-extension"
+                  href="https://github.com/AqtaAI/spectra#browser-extension"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="hover:text-amber-300 underline underline-offset-1"
@@ -656,7 +670,7 @@ export default function Home() {
         {!extensionReady && isConnected && showExtensionBanner && (
           <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40 max-w-lg mx-4 flex items-center gap-3 px-4 py-3 rounded-xl bg-amber-500/15 border border-amber-500/30 backdrop-blur-sm" role="status">
             <span className="text-amber-300 text-sm">
-              Install the <a href="https://github.com/Aqta-ai/spectra#browser-extension" target="_blank" rel="noopener noreferrer" className="underline font-medium">Spectra Bridge</a> extension to click, type, and navigate with voice.
+              Install the <a href="https://github.com/AqtaAI/spectra#browser-extension" target="_blank" rel="noopener noreferrer" className="underline font-medium">Spectra Bridge</a> extension to click, type, and navigate with voice.
             </span>
             <button onClick={() => setShowExtensionBanner(false)} className="flex-shrink-0 p-1 rounded hover:bg-amber-500/20 text-amber-200" aria-label="Dismiss">×</button>
           </div>
@@ -1007,7 +1021,7 @@ export default function Home() {
         {" · "}
         <a href="/overlay" className="hover:text-white/50 transition-colors">Overlay</a>
         {" · "}
-        <a href="https://github.com/Aqta-ai/spectra" className="hover:text-white/50 transition-colors">GitHub</a>
+        <a href="https://github.com/AqtaAI/spectra" target="_blank" rel="noopener noreferrer" className="hover:text-white/50 transition-colors">GitHub</a>
         {" · Apache 2.0"}
       </footer>
 

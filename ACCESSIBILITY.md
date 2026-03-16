@@ -46,14 +46,12 @@ When you first start, the browser will ask for screen sharing permission. This d
 | "Scroll down / up" | Scrolls the page |
 | "Go to [website]" | Navigates to a URL |
 | "Press Enter / Tab / Escape" | Presses a key |
-| "Remember this" | Saves a screen snapshot |
-| "What changed?" | Compares to a saved snapshot |
-| "Teach me this app" | Guided tour of the screen |
 | "Stop" / "Cancel" | Interrupts the current action |
 
 ### Audio Output
 
-- Gemini native audio (Aoede voice), natural, clear speech
+- Gemini native audio (default: Aoede — warm, breezy voice), natural, clear speech
+- **Custom voice**: Set `SPECTRA_VOICE` in backend `.env` to try other voices (e.g. `Kore` for cheerful, `Puck` for upbeat)
 - Audio plays automatically through your speakers/headphones
 - **No conflict with screen readers** — Spectra speaks via Web Audio API, screen reader reads the UI. They can coexist
 - Mic is automatically muted while Spectra speaks to prevent echo feedback loops
@@ -128,7 +126,7 @@ All decorative elements use `aria-hidden="true"`: logo image, decorative SVG ico
 
 ### Screen Reader Compatibility
 
-Designed for VoiceOver (macOS), NVDA and JAWS (Windows). The AI system prompt includes VoiceOver-specific guidance (e.g., Ctrl+Option+Command+H for headings) and prefers keyboard/Tab navigation over coordinate-based clicking when used alongside screen readers.
+Designed for VoiceOver (macOS), NVDA and JAWS (Windows), Orca (Linux), TalkBack (Android). The AI system prompt includes VoiceOver-specific guidance (e.g., Ctrl+Option+Command+H for headings) and prefers keyboard/Tab navigation over coordinate-based clicking when used alongside screen readers.
 
 ---
 
@@ -171,7 +169,7 @@ This covers: orb animations (idle/listen/speak), waveform bars, CTA glow pulse, 
 
 ## 🌐 Multilingual
 
-- **AI auto-matches user language** — if you speak French, Spectra responds in French. Arabic, Spanish, Hindi, Chinese, German, and any other language
+- **AI auto-matches user language** — if you speak French, Spectra responds in French. Supports Arabic, Spanish, Hindi, Chinese, German, and 30+ other languages
 - **30+ languages** via Gemini native audio
 - **Browser locale wake word detection** — speech recognition uses `navigator.language` instead of hardcoding English
 - **Core prompt enforces it** — "I NEVER force English responses"
@@ -210,6 +208,8 @@ The `/overlay` page includes a client-side accessibility heuristic checker:
 - Checks for missing H1 heading
 - Dedicated "Accessibility hints" tab with pass/fail indicators
 
+Visit [spectra.aqta.ai/overlay](https://spectra.aqta.ai/overlay) or `localhost:3000/overlay` to analyze any webpage.
+
 ---
 
 ## ✅ Implementation Status
@@ -220,7 +220,7 @@ All features listed above are **implemented in code** and can be verified by ins
 |---------|--------|-------|
 | Dual ARIA live regions (assertive + polite) | ✅ | `page.tsx` |
 | Keyboard shortcuts (Q / W / Escape) | ✅ | `page.tsx` |
-| Wake word detection ("Hey Spectra") | ✅ | `useVoiceActivation.ts` |
+| Wake word detection ("Hey Spectra") | ✅ | `useVoiceActivation.ts` + `useWakeWord.ts` |
 | Screen reader announcements (connect, disconnect, listening, actions) | ✅ | `page.tsx` |
 | Skip-to-content link | ✅ | `layout.tsx` |
 | Barge-in / interrupt | ✅ | Gemini VAD + frontend stop |
@@ -233,8 +233,35 @@ All features listed above are **implemented in code** and can be verified by ins
 | Destructive action confirmation | ✅ | `system_instruction.py` + `core_instruction.txt` |
 | Extension a11y-aware targeting | ✅ | `content.js` |
 | Built-in accessibility auditor | ✅ | `overlay/page.tsx` |
+| Overlay performance optimizations | ✅ | `overlay.py` (20KB HTML, 1hr cache, top 50 elements) |
 | VoiceOver real-user test | 📋 Planned | Community testers welcome |
 | NVDA real-user test | 📋 Planned | Community testers welcome |
+| JAWS real-user test | 📋 Planned | Community testers welcome |
+
+---
+
+## 🧪 Testing
+
+### Automated Tests
+
+Spectra includes 20 test files covering accessibility features:
+
+```bash
+# Backend accessibility tests
+cd backend
+pytest tests/test_wcag_compliance.py -v
+pytest tests/test_blind_user_experience.py -v
+pytest tests/test_screen_reader_compatibility.py -v
+pytest tests/test_keyboard_navigation.py -v
+
+# Frontend accessibility tests
+cd frontend
+npm run test:a11y
+```
+
+### Manual Testing
+
+See [docs/BLIND_USER_MANUAL_TEST_SCRIPT.md](docs/BLIND_USER_MANUAL_TEST_SCRIPT.md) for a comprehensive testing guide for blind users.
 
 ---
 
@@ -242,6 +269,21 @@ All features listed above are **implemented in code** and can be verified by ins
 
 - Text-only mode (disable audio, use screen reader only)
 - Firefox support for Spectra Bridge extension
-- Customisable voice and speech rate
+- Customizable voice and speech rate
 - Haptic feedback for mobile users
 - Voice training and accent adaptation
+- Braille display support
+
+---
+
+## 🙏 Community Testing
+
+We welcome accessibility testing from real users! If you use assistive technology and would like to help test Spectra:
+
+- **Report issues:** [GitHub Issues](https://github.com/AqtaAI/spectra/issues)
+- **Share feedback:** hello@aqta.ai
+- **Join testing:** See [CONTRIBUTING.md](CONTRIBUTING.md) for how to get involved
+
+---
+
+Built with 💜 for the accessibility community.

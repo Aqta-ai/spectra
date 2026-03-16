@@ -1,3 +1,6 @@
+# Docs (internal / draft, not published)
+docs/
+
 # Environment & secrets (do not publish)
 .env
 .env.local
@@ -150,10 +153,6 @@ scripts/
 # Spectra session memory (runtime state — not for public repo)
 backend/.spectra/
 .spectra/
-
-# Spectra Overlay (local-only prototype — not for public repo)
-frontend/src/app/overlay/
-backend/app/overlay.py
 
 # Accessibility research (internal use only — contains participant data)
 backend/accessibility_testing/

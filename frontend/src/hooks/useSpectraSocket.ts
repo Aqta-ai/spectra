@@ -286,8 +286,20 @@ export function useSpectraSocket(options: SpectraSocketOptions) {
       // Tell the backend whether the browser extension is installed.
       // The backend injects this into Gemini's context so it knows upfront
       // whether browser actions (click, type, navigate, scroll) will work.
-      const extAvailable = typeof window !== 'undefined' && !!(window as any).spectraExtensionAvailable;
+      let extAvailable = typeof window !== 'undefined' && !!(window as any).spectraExtensionAvailable;
       ws.send(JSON.stringify({ type: "extension_status", available: extAvailable }));
+      // Re-send extension_status when extension becomes available (it may respond to ping after connect)
+      let lastSentExtension = extAvailable;
+      const extensionCheckInterval = window.setInterval(() => {
+        if (wsRef.current?.readyState !== WebSocket.OPEN) return;
+        const nowAvailable = typeof window !== 'undefined' && !!(window as any).spectraExtensionAvailable;
+        if (nowAvailable && !lastSentExtension) {
+          wsRef.current!.send(JSON.stringify({ type: "extension_status", available: true }));
+          lastSentExtension = true;
+          clearInterval(extensionCheckInterval);
+        }
+      }, 2000);
+      window.setTimeout(() => clearInterval(extensionCheckInterval), 16000);
       flushQueue(ws);
     };
 
@@ -350,8 +362,19 @@ export function useSpectraSocket(options: SpectraSocketOptions) {
         lastPongRef.current = Date.now();
         optionsRef.current.onConnect();
         // Tell backend whether the extension is installed
-        const extAvailable = typeof window !== 'undefined' && !!(window as any).spectraExtensionAvailable;
+        let extAvailable = typeof window !== 'undefined' && !!(window as any).spectraExtensionAvailable;
         ws.send(JSON.stringify({ type: "extension_status", available: extAvailable }));
+        let lastSentExtension = extAvailable;
+        const extensionCheckInterval = window.setInterval(() => {
+          if (wsRef.current?.readyState !== WebSocket.OPEN) return;
+          const nowAvailable = typeof window !== 'undefined' && !!(window as any).spectraExtensionAvailable;
+          if (nowAvailable && !lastSentExtension) {
+            wsRef.current!.send(JSON.stringify({ type: "extension_status", available: true }));
+            lastSentExtension = true;
+            clearInterval(extensionCheckInterval);
+          }
+        }, 2000);
+        window.setTimeout(() => clearInterval(extensionCheckInterval), 16000);
         flushQueue(ws);
 
         // Re-wire for reconnection support

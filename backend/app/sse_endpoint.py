@@ -45,11 +45,12 @@ async def sse_stream(request: Request, session_id: str) -> AsyncGenerator[str, N
             heartbeat_count += 1
             
             # Send heartbeat event
-            yield f"data: {json.dumps({
+            heartbeat_data = {
                 'type': 'heartbeat',
                 'count': heartbeat_count,
                 'message': 'SSE connection active (limited functionality)'
-            })}\n\n"
+            }
+            yield f"data: {json.dumps(heartbeat_data)}\n\n"
             
             # Wait before next heartbeat
             await asyncio.sleep(5.0)

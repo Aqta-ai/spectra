@@ -172,7 +172,8 @@ class SpectraStreamingSession:
             self.client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
         self.gemini_session = None
         self._running = False
-        self._action_queue: asyncio.Queue = asyncio.Queue()
+        # Match action results by id so a timeout doesn't hand the next action the previous result
+        self._action_pending: dict[str, asyncio.Future] = {}
         self._latest_frame: str | None = None
         self._latest_dom: dict = {}
         self._current_url: str = ""
@@ -378,7 +379,7 @@ class SpectraStreamingSession:
             speech_config=types.SpeechConfig(
                 voice_config=types.VoiceConfig(
                     prebuilt_voice_config=types.PrebuiltVoiceConfig(
-                        voice_name="Aoede"  # Female, warm, multilingual voice
+                        voice_name=os.getenv("SPECTRA_VOICE", "Aoede")
                     )
                 )
             ),
@@ -430,6 +431,7 @@ class SpectraStreamingSession:
                         self._text_buffer = []
                         self._audio_sent_this_turn = False
                         logger.info(f"Gemini Live session (re)connected using model: {self._live_model}")
+                        first_connect = _is_first_connect
                         if not _is_first_connect:
                             # On reconnect: suppress the greeting loop by sending the
                             # "stay silent" instruction BEFORE the silence burst.
@@ -463,15 +465,29 @@ class SpectraStreamingSession:
                         try:
                             ctx_parts = []
                             
-                            # Only inject screen sharing context if screen has never been shared
-                            if not self._screen_ever_shared:
-                                ctx_parts.append(
-                                    "[USER NEEDS ONBOARDING: User hasn't shared screen yet. "
-                                    "If they ask anything, warmly explain how to press W to share screen.]"
-                                )
+                            # First connect: single greeting only (avoid duplicate intro)
+                            if first_connect:
+                                if not self._screen_ever_shared:
+                                    ctx_parts.append(
+                                        "[The user has just connected. Say exactly ONCE: "
+                                        "'Hello, I'm Spectra — your hands-free browser assistant. Press W to share your screen so I can see it and help you.' "
+                                        "Do NOT repeat hello or add a second greeting. One short intro only.]"
+                                    )
+                                else:
+                                    ctx_parts.append(
+                                        "[The user has just connected. Say exactly ONCE: "
+                                        "'Hello, I'm Spectra. I'm ready — what would you like to do?' "
+                                        "Do NOT repeat or add another greeting.]"
+                                    )
                             else:
-                                # Screen has been shared before - don't ask again
-                                ctx_parts.append("[Screen sharing is active. User can see and interact normally.]")
+                                # Reconnect: context only, no greeting
+                                if not self._screen_ever_shared:
+                                    ctx_parts.append(
+                                        "[USER NEEDS ONBOARDING: User hasn't shared screen yet. "
+                                        "If they ask anything, warmly explain how to press W to share screen.]"
+                                    )
+                                else:
+                                    ctx_parts.append("[Screen sharing is active. User can see and interact normally.]")
                             
                             # Inject extension status so Gemini knows upfront whether actions work
                             if self._extension_available:
@@ -823,16 +839,36 @@ class SpectraStreamingSession:
 
                 if msg_type == "audio":
                     if self.gemini_session and self._running:
-                        audio_data = base64.b64decode(msg["data"])
-                        await self.gemini_session.send_realtime_input(
-                            audio=types.Blob(data=audio_data, mime_type="audio/pcm;rate=16000")
-                        )
-                        self._last_input_time = time.time()
-                        self._last_activity = time.time()
+                        try:
+                            audio_data = base64.b64decode(msg["data"])
+                            if len(audio_data) >= 2 and len(audio_data) % 2 == 0:
+                                await self.gemini_session.send_realtime_input(
+                                    audio=types.Blob(data=audio_data, mime_type="audio/pcm;rate=16000")
+                                )
+                                self._last_input_time = time.time()
+                                self._last_activity = time.time()
+                            else:
+                                logger.debug("Skipping invalid audio chunk: len=%d (expected even, >=2)", len(audio_data))
+                        except Exception as e:
+                            logger.warning("Audio send failed: %s", e)
 
                 elif msg_type == "screenshot":
                     frame_data = msg["data"]
                     frame_bytes = base64.b64decode(frame_data)
+                    now = time.time()
+                    # Detect screen share change: long gap = user stopped then restarted (or switched source)
+                    frame_gap = now - self.last_frame_ts if self.last_frame_ts else 0
+                    if frame_gap > 5.0 and self._screen_ever_shared:
+                        async with self._describe_cache_lock:
+                            self._describe_cache.clear()
+                        self._cache_access_times.clear()
+                        if self.gemini_session and self._running:
+                            try:
+                                await self.gemini_session.send_realtime_input(
+                                    text="[Screen source changed. Describe what you see now.]"
+                                )
+                            except Exception:
+                                pass
                     self._latest_frame = frame_data
                     self._capture_width = msg.get("width", 0)
                     self._capture_height = msg.get("height", 0)
@@ -840,9 +876,9 @@ class SpectraStreamingSession:
 
                     # Track screen sharing state
                     was_first_time = self._is_first_time_user and not self._screen_ever_shared
-                    
+
                     self.screen_stream_active = True
-                    self.last_frame_ts = time.time()
+                    self.last_frame_ts = now
                     self.connection_state = "open"
                     self._screen_ever_shared = True
                     self.session_state.mark_frame_received()  # persist across reconnects
@@ -915,7 +951,14 @@ class SpectraStreamingSession:
                 elif msg_type == "action_result":
                     action_id = msg.get("id", "unknown")
                     result = msg.get("result", "unknown")
-                    await self._action_queue.put(msg)
+                    if action_id in self._action_pending:
+                        try:
+                            self._action_pending[action_id].set_result(msg)
+                        except asyncio.InvalidStateError:
+                            pass
+                        del self._action_pending[action_id]
+                    else:
+                        logger.debug("Discarding stale action_result for id=%s (no waiter)", action_id)
                     self._last_activity = time.time()
 
                 elif msg_type == "extension_status":
@@ -980,6 +1023,7 @@ class SpectraStreamingSession:
             return False
         if self._current_url:
             text = f"[Page: {self._current_url}]\n{text}"
+        text = text.rstrip() + "\n[Respond in the same language as this message.]"
         await self.gemini_session.send_realtime_input(text=text)
         return True
 
@@ -1023,6 +1067,8 @@ class SpectraStreamingSession:
                 action_id = str(uuid.uuid4())[:8]
                 logger.info("→ Sending action to extension: %s(%s) id=%s",
                             fc.name, {k: v for k, v in params.items() if not k.startswith("_")}, action_id)
+                future: asyncio.Future = asyncio.get_event_loop().create_future()
+                self._action_pending[action_id] = future
                 await self.websocket.send_json({
                     "type": "action",
                     "action": fc.name,
@@ -1031,16 +1077,17 @@ class SpectraStreamingSession:
                 })
 
                 try:
-                    action_msg = await asyncio.wait_for(
-                        self._action_queue.get(), timeout=ACTION_TIMEOUT
-                    )
+                    action_msg = await asyncio.wait_for(future, timeout=ACTION_TIMEOUT)
                     result = action_msg.get("result", "done")
                     logger.info("← Action result for %s: %s", fc.name, result[:120])
                 except asyncio.TimeoutError:
                     result = "timeout: action took too long"
                     logger.warning("⏱ Action timeout for %s (id=%s)", fc.name, action_id)
+                    if action_id in self._action_pending:
+                        del self._action_pending[action_id]
 
                 # Track current URL after successful navigation
+                old_url = self._current_url
                 if fc.name == "navigate":
                     nav_url = args.get("url", "")
                     if nav_url:
@@ -1048,15 +1095,24 @@ class SpectraStreamingSession:
 
                 # Also update _current_url when a link click triggers page navigation.
                 # content.js returns "clicked_link_navigate_expected:<href>" for <a> tags.
-                # Without this, read_page_structure() after a link click fetches the old URL.
-                if fc.name == "click_element" and result.startswith("Link clicked"):
-                    # result format: "Link clicked — page loading. Destination: <url>"
-                    dest_prefix = "Destination: "
-                    dest_idx = result.find(dest_prefix)
-                    if dest_idx != -1:
-                        link_dest = result[dest_idx + len(dest_prefix):].strip()
-                        if link_dest and link_dest != "unknown" and link_dest.startswith("http"):
-                            self._current_url = link_dest
+                # Check RAW result format (before _translate_action_result).
+                if fc.name == "click_element" and result.lower().startswith("clicked_link_navigate_expected:"):
+                    link_dest = result.split(":", 1)[1].strip() if ":" in result else ""
+                    if link_dest and link_dest.startswith("http"):
+                        self._current_url = link_dest
+
+                # When page changes, clear caches and tell Gemini so it doesn't use old context.
+                if self._current_url != old_url:
+                    async with self._describe_cache_lock:
+                        self._describe_cache.clear()
+                    self._cache_access_times.clear()
+                    if self.gemini_session and self._running:
+                        try:
+                            await self.gemini_session.send_realtime_input(
+                                text=f"[Page changed to: {self._current_url}. Describe what you see now — ignore previous page content.]"
+                            )
+                        except Exception:
+                            pass
 
                 # Translate raw action result codes into plain English for Gemini.
                 # Raw codes like "clicked_by_label_button_Sign in" cause Gemini to read
@@ -1555,20 +1611,21 @@ class SpectraStreamingSession:
         
         # Request selection from client
         action_id = str(uuid.uuid4())[:8]
+        future: asyncio.Future = asyncio.get_event_loop().create_future()
+        self._action_pending[action_id] = future
         await self.websocket.send_json({
             "type": "action",
             "action": "read_selection",
             "params": {"mode": mode},
             "id": action_id,
         })
-        
         try:
-            action_msg = await asyncio.wait_for(
-                self._action_queue.get(), timeout=ACTION_TIMEOUT
-            )
+            action_msg = await asyncio.wait_for(future, timeout=ACTION_TIMEOUT)
             result = action_msg.get("result", "No text selected")
             return f"Reading {mode}: {result}"
         except asyncio.TimeoutError:
+            if action_id in self._action_pending:
+                del self._action_pending[action_id]
             return f"Timeout reading {mode} text"
 
     async def _read_page_structure(self, args: dict) -> str:
