@@ -265,7 +265,7 @@ Spectra should automatically reduce volume when screen reader speaks.
 3. Move closer to WiFi router if wireless
 4. Try wired connection if available
 
-**Optimize Performance:**
+**Optimise Performance:**
 1. Close unnecessary browser tabs
 2. Restart browser to clear memory
 3. Clear browser cache

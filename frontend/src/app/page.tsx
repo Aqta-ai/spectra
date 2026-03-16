@@ -147,7 +147,7 @@ export default function Home() {
   const [extensionReady, setExtensionReady] = useState(false);
   const [showExtensionBanner, setShowExtensionBanner] = useState(true);
 
-  const { isFirstTime, hasSharedScreen, shouldShowOnboarding, markScreenShared, dismissOnboarding } = useOnboarding();
+  const { isFirstTime, hasSharedScreen, shouldShowOnboarding, markScreenShared, dismissOnboarding, markOnboardingComplete } = useOnboarding();
 
   // Multimodal Feedback System - 10X User Experience
   const feedback = useFeedback({
@@ -405,7 +405,7 @@ export default function Home() {
   });
 
   useVoiceActivation({
-    enabled: !isActive && isConnected,
+    enabled: !isActive,
     wakeWords: ["hey spectra", "start spectra", "ok spectra", "spectra"],
     onActivate: () => { handleStart(); },
   });
@@ -540,7 +540,7 @@ export default function Home() {
             <img src="/icon512.png" alt="" aria-hidden="true" className="w-7 h-7 sm:w-8 sm:h-8" />
             <div>
               <span className="text-lg sm:text-xl font-semibold tracking-tight">Spectra</span>
-              <span className="hidden sm:inline text-white/40 text-xs font-normal ml-2">Voice-first screen reader</span>
+              <span className="hidden sm:inline text-white/40 text-xs font-normal ml-2">Browse by voice</span>
             </div>
           </div>
 
@@ -650,15 +650,7 @@ export default function Home() {
 
       {/* ── Main ───────────────────────────────────────────────────────────── */}
       <main className="flex-1 flex flex-col items-center px-4 sm:px-6 py-8 sm:py-12 relative">
-        {/* Onboarding: prompt to share screen when connected and first time */}
-        {shouldShowOnboarding && (
-          <OnboardingGuide
-            isFirstTime={isFirstTime}
-            hasSharedScreen={hasSharedScreen}
-            isConnected={isConnected}
-            onDismiss={dismissOnboarding}
-          />
-        )}
+        {/* Simple, working onboarding - REMOVED */}
 
         {/* Extension banner when connected but extension missing — dismissible */}
         {!extensionReady && isConnected && showExtensionBanner && (
@@ -676,7 +668,7 @@ export default function Home() {
         )}
         {!isActive && messages.length === 0 ? (
           /* ── Idle hero ──────────────────────────────────────────────────── */
-          <div className="flex flex-col items-center justify-center flex-1 text-center space-y-7 sm:space-y-9">
+          <div className="flex flex-col items-center justify-center flex-1 text-center space-y-7 sm:space-y-9 -mt-8 sm:-mt-12">
 
             {/* Orb + rings */}
             <div className="relative flex items-center justify-center">
@@ -713,17 +705,19 @@ export default function Home() {
                   ? "bg-gradient-to-r from-white via-spectra-secondary to-spectra-primary bg-clip-text text-transparent"
                   : "text-white"
               }`}>{statusText}</h2>
-              <p className="text-white/50 text-sm sm:text-base max-w-sm mx-auto">
-                Press{" "}
-                <kbd className="px-2 py-0.5 bg-white/8 border border-white/15 rounded text-sm font-mono text-white/80">Q</kbd>{" "}
-                or say{" "}
-                <span className="text-spectra-secondary font-medium">"Hey Spectra"</span>{" "}
-                to begin
-              </p>
-              {isFirstTime && (
-                <p className="text-white/40 text-xs max-w-md mx-auto mt-2">
-                  First time? Install the extension → Share screen (W) → Say &quot;Hey Spectra&quot;
-                </p>
+
+              {/* Helpful shortcuts - always visible */}
+              {!isActive && messages.length === 0 && (
+                <div className="flex flex-wrap justify-center gap-3 text-sm text-white/60">
+                  <div className="flex items-center gap-2">
+                    <kbd className="px-2 py-1 bg-white/10 rounded border border-white/20 font-mono text-xs">Q</kbd>
+                    <span>to connect</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <kbd className="px-2 py-1 bg-white/10 rounded border border-white/20 font-mono text-xs">W</kbd>
+                    <span>to share screen</span>
+                  </div>
+                </div>
               )}
             </div>
 
@@ -1008,6 +1002,8 @@ export default function Home() {
         Spectra
         {" · "}
         <a href="/guide" className="hover:text-white/50 transition-colors">Guide</a>
+        {" · "}
+        <a href="/privacy" className="hover:text-white/50 transition-colors">Privacy</a>
         {" · "}
         <a href="/overlay" className="hover:text-white/50 transition-colors">Overlay</a>
         {" · "}

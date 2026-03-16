@@ -19,14 +19,6 @@ config/secrets.json
 secrets/
 .secrets/
 
-# Local / IDE (optional — keep local config off public repo)
-.cursor/
-.kiro/
-.claude/
-
-# Local extensions
-pro/
-
 # Python
 __pycache__/
 *.py[cod]
@@ -112,6 +104,30 @@ kill-ports.sh
 run.sh
 stop.sh
 setup-vertex-ai.sh
+start-spectra.sh
+restart-backend.sh
+restart-backend-fixed.sh
+fix-and-restart.sh
+run-tests.sh
+diagnose-connection.sh
+check-vertex-models.py
+reset-onboarding.html
+
+# Internal debug/fix notes (not for public repo)
+AUDIO_DEBUG_GUIDE.md
+AUDIO_FIX.md
+CRITICAL_FIXES.md
+DEEP_RCA_FIX.md
+EMERGENCY_FIX.md
+FINAL_SOLUTION_SUMMARY.md
+FINAL_STATUS.md
+GEMINI_LIVE_HACKATHON_SETUP.md
+IMPROVEMENT_AND_TEST_PLAN.md
+ONBOARDING_ENHANCEMENT_SUMMARY.md
+SPAM_FIX.md
+SSE_VERCEL_GUIDE.md
+SPECTRA_PERFORMANCE_IMPROVEMENTS.md
+SPECTRA_10X_PLAN.md
 
 # Terraform
 .terraform/

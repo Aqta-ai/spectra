@@ -111,7 +111,7 @@ async def test_clean_thinking_tags():
     # Test with thinking tags
     text_with_thinking = "Let me help you! <think>Thinking about the screen...</think> Now I can see it."
     cleaned = session._clean_thinking(text_with_thinking)
-    assert cleaned == "Let me help you!  Now I can see it."
+    assert cleaned == "Let me help you! Now I can see it."
     
     # Test without thinking tags
     text_normal = "Hello, how can I help you?"
@@ -121,7 +121,7 @@ async def test_clean_thinking_tags():
     # Test with multiple thinking blocks
     text_multiple = "First <think>block one</think> second <think>block two</think> end."
     cleaned = session._clean_thinking(text_multiple)
-    assert cleaned == "First  second  end."
+    assert cleaned == "First second end."
 
 
 @pytest.mark.asyncio

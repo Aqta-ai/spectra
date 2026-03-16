@@ -84,6 +84,21 @@ class PerformanceMetrics:
     failed_vision_calls: int = 0
     slow_response_count: int = 0  # Responses > 3 seconds
     
+    @property
+    def success_rate(self) -> float:
+        """Calculate success rate from vision calls"""
+        if self.total_vision_calls == 0:
+            return 0.0
+        return (self.total_vision_calls - self.failed_vision_calls) / self.total_vision_calls
+    
+    @property
+    def cache_hit_rate(self) -> float:
+        """Calculate cache hit rate"""
+        total_cache_requests = self.cache_hits + self.cache_misses
+        if total_cache_requests == 0:
+            return 0.0
+        return self.cache_hits / total_cache_requests
+    
     def reset(self):
         """Reset all metrics."""
         self.vision_response_times.clear()
@@ -239,6 +254,18 @@ class PerformanceMonitor:
             'is_slow': duration > self.slow_response_threshold
         })
     
+    def get_error_rate(self) -> float:
+        """Get current error rate"""
+        if self.metrics.total_vision_calls == 0:
+            return 0.0
+        return self.metrics.failed_vision_calls / self.metrics.total_vision_calls
+    
+    def get_average_response_time(self) -> float:
+        """Get average response time from recent samples"""
+        if not self.metrics.vision_response_times:
+            return 0.0
+        return sum(self.metrics.vision_response_times) / len(self.metrics.vision_response_times)
+    
     def _generate_slow_response_alert(self, duration: float):
         """Generate contextual slow response alert"""
         recent_avg = self.get_average_response_time()
@@ -306,6 +333,28 @@ class PerformanceMonitor:
         self.smart_alerts.append(alert)
         logger.warning("Performance degradation detected - response times increasing")
     
+    def get_statistics(self) -> Dict[str, Any]:
+        """Get basic performance statistics"""
+        if not self.metrics.vision_response_times:
+            return {
+                'total_calls': 0,
+                'average_response_time': 0.0,
+                'min_response_time': 0.0,
+                'max_response_time': 0.0,
+                'success_rate': 0.0,
+                'cache_hit_rate': 0.0
+            }
+        
+        response_times = self.metrics.vision_response_times
+        return {
+            'total_calls': len(response_times),
+            'average_response_time': sum(response_times) / len(response_times),
+            'min_response_time': min(response_times),
+            'max_response_time': max(response_times),
+            'success_rate': self.metrics.success_rate,
+            'cache_hit_rate': self.metrics.cache_hit_rate
+        }
+    
     def get_enhanced_statistics(self) -> Dict[str, Any]:
         """Get comprehensive performance statistics with insights"""
         base_stats = self.get_statistics()
@@ -329,7 +378,7 @@ class PerformanceMonitor:
     
     def _calculate_performance_trend(self) -> str:
         """Calculate overall performance trend"""
-        if len(self.performance_trends) < 10:
+        if len(self.performance_trends) < 5:  # Reduced from 10 to 5 for more responsive trend detection
             return "insufficient_data"
         
         recent_half = list(self.performance_trends)[-len(self.performance_trends)//2:]

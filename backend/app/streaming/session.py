@@ -34,58 +34,26 @@ from app.streaming.session_manager import get_session_manager, SessionState
 
 logger = logging.getLogger(__name__)
 
-LIVE_MODEL = "gemini-live-2.5-flash-native-audio"
+# Model name differs between Vertex AI and the direct Gemini API.
+# Vertex AI uses the "gemini-live-*" naming scheme; direct API uses "models/*".
+# NOTE: evaluated lazily in SpectraStreamingSession.__init__ so load_dotenv()
+# has already run by the time we read GOOGLE_CLOUD_PROJECT.
+_VERTEX_MODEL = "gemini-live-2.5-flash-native-audio"
+_DIRECT_MODEL = "models/gemini-2.5-flash-native-audio-preview-12-2025"
+
+def _get_live_model() -> str:
+    return _VERTEX_MODEL if os.getenv("GOOGLE_CLOUD_PROJECT") else _DIRECT_MODEL
+
+# Keep a module-level alias for logging — resolved at first use
+_USE_VERTEX = None  # set lazily
+LIVE_MODEL = None   # set lazily
 
 SERVER_SIDE_TOOLS = {"describe_screen", "save_snapshot", "diff_screen", "teach_me_app", "read_selection", "read_page_structure"}
-
-def load_core_instruction() -> str:
-    """Load the warm, conversational core instruction from the text file."""
-    try:
-        import os
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        instruction_path = os.path.join(current_dir, "..", "agents", "prompts", "core_instruction.txt")
-        with open(instruction_path, 'r', encoding='utf-8') as f:
-            core_content = f.read().strip()
-        
-        # Add critical anti-hallucination instructions
-        anti_hallucination = """
-
-━━━ CRITICAL: NO HALLUCINATION ━━━
-
-NEVER make up or guess what's on the screen. ONLY describe what you actually see in the video feed.
-
-If you cannot see the screen clearly or if no video is available:
-- Say "I can't see your screen right now" 
-- Do NOT describe imaginary content
-- Do NOT guess what website or app might be open
-- Do NOT make up buttons, links, or text that you cannot actually see
-
-When describing the screen:
-- Only mention elements that are actually visible in the current video frame
-- Use phrases like "I can see..." or "The screen shows..." 
-- If something is unclear, say "I can see something that looks like..." rather than stating it definitively
-- If the video feed is poor quality, mention that: "The image is a bit blurry, but I can make out..."
-
-REMEMBER: Your user trusts you to be accurate. Never betray that trust by making things up."""
-        
-        return core_content + anti_hallucination
-        
-    except Exception as e:
-        logger.error(f"Failed to load core instruction: {e}")
-        # Fallback to a simple instruction with anti-hallucination built in
-        return """I am Spectra, your friendly AI companion who can see your screen and help you navigate. I'm here to make your digital experience joyful and effortless!
-
-I am warm, friendly, and emotionally expressive. I speak naturally like a caring friend.
-
-I understand and respond in ANY language the user speaks to me in. I automatically detect your language and match it.
-
-CRITICAL: I NEVER make up or guess what's on the screen. I ONLY describe what I actually see in the video feed. If I cannot see your screen clearly, I will say so honestly."""
-
 # Performance tuning - Configurable via environment variables
 MAX_FRAME_QUEUE = int(os.getenv("MAX_FRAME_QUEUE", "3"))
 ACTION_TIMEOUT = float(os.getenv("ACTION_TIMEOUT", "12.0"))  # 12s — navigate waits for page load (up to 8s)
 HEARTBEAT_INTERVAL = float(os.getenv("HEARTBEAT_INTERVAL", "3.0"))
-FRAME_COOLDOWN = float(os.getenv("FRAME_COOLDOWN", "0.01"))
+FRAME_COOLDOWN = float(os.getenv("FRAME_COOLDOWN", "1.0"))  # 1s — Live API max 1 FPS for images
 DESCRIBE_CACHE_TTL = float(os.getenv("DESCRIBE_CACHE_TTL", "3.0"))
 MAX_CONCURRENT_ACTIONS = int(os.getenv("MAX_CONCURRENT_ACTIONS", "2"))
 BATCH_SIZE = int(os.getenv("BATCH_SIZE", "1"))
@@ -132,6 +100,18 @@ def _translate_action_result(action: str, result: str) -> str:
 
     # Click — regular element
     if rl.startswith("clicked_"):
+        # Preserve what was clicked so Gemini knows the action succeeded
+        # Raw format: "clicked_TAG_LABEL" or "clicked_by_label_TAG_LABEL"
+        suffix = r[len("clicked_"):]
+        # Strip "by_label_" prefix if present
+        if suffix.lower().startswith("by_label_"):
+            suffix = suffix[len("by_label_"):]
+        # Split tag from label: "a_Communication" → tag=a, label=Communication
+        parts = suffix.split("_", 1)
+        label = parts[1] if len(parts) > 1 else parts[0]
+        label = label.replace("_", " ").strip()
+        if label:
+            return f"Successfully clicked '{label}'."
         return "Clicked."
 
     # Type
@@ -154,7 +134,11 @@ def _translate_action_result(action: str, result: str) -> str:
 
     # Highlight
     if rl.startswith("highlighted_"):
-        return "Element highlighted."
+        suffix = r[len("highlighted_"):]
+        parts = suffix.split("_", 1)
+        label = parts[1] if len(parts) > 1 else parts[0]
+        label = label.replace("_", " ").strip()
+        return f"Highlighted '{label}'." if label else "Element highlighted."
 
     # Reading / selection
     if rl.startswith("reading_") or rl.startswith("read_"):
@@ -173,6 +157,15 @@ class SpectraStreamingSession:
         self.session_id = session_id or str(uuid.uuid4())
         _gcp_project = os.getenv("GOOGLE_CLOUD_PROJECT")
         _gcp_location = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
+        # Resolve model name now that load_dotenv() has run.
+        # Store as instance variables so run() doesn't depend on module-level globals.
+        self._use_vertex: bool = bool(_gcp_project)
+        self._live_model: str = _VERTEX_MODEL if self._use_vertex else _DIRECT_MODEL
+        # Also update module-level globals for backward compat (logging etc.)
+        global _USE_VERTEX, LIVE_MODEL
+        _USE_VERTEX = self._use_vertex
+        LIVE_MODEL = self._live_model
+        logger.info(f"Using model: {self._live_model} (Vertex={self._use_vertex})")
         if _gcp_project:
             self.client = genai.Client(vertexai=True, project=_gcp_project, location=_gcp_location)
         else:
@@ -199,6 +192,15 @@ class SpectraStreamingSession:
         self._tool_response_lock = asyncio.Lock()
         self._describe_cache_lock = asyncio.Lock()
         self._last_input_time: float = 0
+
+        # Audio gating: buffer audio briefly at the start of each model turn.
+        # If a tool_call arrives within the gate window, the buffered audio is
+        # discarded (it was premature narration like "done!" spoken before the
+        # action actually executed). If no tool_call arrives, the buffer is
+        # flushed and subsequent audio flows directly.
+        self._audio_buffer: list[dict] = []
+        self._audio_gate_open: bool = False
+        self._audio_flush_task: asyncio.Task | None = None
         self._last_activity: float = time.time()
         self._last_describe_time: float = 0
         self._describe_cooldown: float = 0.5  # Reduced from 0s to 0.5s
@@ -207,10 +209,6 @@ class SpectraStreamingSession:
         from app.streaming.fast_pipeline import get_fast_pipeline
         self.fast_pipeline = get_fast_pipeline()
         logger.info(f"[FastPipeline] Initialized for session {self.session_id}")
-        
-        # Fast Response Pipeline - 10X Performance Improvement
-        from app.streaming.fast_pipeline import get_fast_pipeline
-        self.fast_pipeline = get_fast_pipeline()
         
         # Get persistent session state from session manager
         self.session_manager = get_session_manager()
@@ -285,6 +283,9 @@ class SpectraStreamingSession:
         # Set True when the browser WebSocket disconnects so the Gemini reconnect
         # loop knows to stop rather than reconnect again.
         self._client_disconnected: bool = False
+        
+        # Extension availability — set by extension_status message from frontend
+        self._extension_available: bool = False
         
         # Frame similarity detection for response time optimization (Task 8.4)
         self._previous_frame_hash: str | None = None
@@ -361,11 +362,14 @@ class SpectraStreamingSession:
         
         # Inject memory context into system instruction
         memory_context = self.memory.get_context_for_system_instruction()
-        core_instruction = load_core_instruction()
+        from app.agents.orchestrator import SPECTRA_SYSTEM_INSTRUCTION
+        core_instruction = SPECTRA_SYSTEM_INSTRUCTION
         enhanced_instruction = core_instruction + memory_context
         
         # Full Spectra configuration with proper system instruction
-        config = types.LiveConnectConfig(
+        # Note: max_output_tokens and temperature are not valid LiveConnectConfig params.
+        # thinking_config is only supported on the direct Gemini API, not Vertex AI Live.
+        config_kwargs = dict(
             response_modalities=["AUDIO"],
             system_instruction=types.Content(
                 parts=[types.Part(text=enhanced_instruction)]
@@ -378,32 +382,28 @@ class SpectraStreamingSession:
                     )
                 )
             ),
-            # Hide thinking tokens from output — this model (2.5 Flash) leaks
-            # its internal reasoning as text parts even when modality is AUDIO.
-            # include_thoughts=False suppresses them from the stream while
-            # keeping full reasoning capability intact (thinking_budget=-1 = auto).
-            thinking_config=types.ThinkingConfig(include_thoughts=False),
-            max_output_tokens=4096,
-            temperature=0.7,  # Reduced from 1.0 for more consistent, less random responses
             # Transcribe what the user says so the frontend can show it
             input_audio_transcription=types.AudioTranscriptionConfig(),
             # Enable output audio transcription for debugging
             output_audio_transcription=types.AudioTranscriptionConfig(),
-            # VAD tuning: HIGH sensitivity for responsive interaction
-            # This allows Spectra to detect when user starts/stops speaking
             realtime_input_config=types.RealtimeInputConfig(
                 automatic_activity_detection=types.AutomaticActivityDetection(
                     start_of_speech_sensitivity=types.StartSensitivity.START_SENSITIVITY_HIGH,
-                    end_of_speech_sensitivity=types.EndSensitivity.END_SENSITIVITY_HIGH,
-                    prefix_padding_ms=200,  # Reduced padding for more responsive interaction
+                    end_of_speech_sensitivity=types.EndSensitivity.END_SENSITIVITY_LOW,
+                    prefix_padding_ms=300,
                 )
             ),
         )
+        # thinking_config is only available on the direct Gemini API (not Vertex AI Live)
+        if not self._use_vertex:
+            config_kwargs["thinking_config"] = types.ThinkingConfig(include_thoughts=False)
+        config = types.LiveConnectConfig(**config_kwargs)
 
         # client_task and heartbeat_task span the full WebSocket lifetime —
         # they survive Gemini reconnects so the browser connection stays alive.
         client_task = asyncio.create_task(self._listen_client())
         heartbeat_task = asyncio.create_task(self._send_heartbeats())
+        keepalive_task = asyncio.create_task(self._gemini_keepalive())
 
         try:
             # ── Gemini reconnect loop ────────────────────────────────────────
@@ -421,7 +421,7 @@ class SpectraStreamingSession:
                     _go_away_wait = 0.0
                 try:
                     async with self.client.aio.live.connect(
-                        model=LIVE_MODEL, config=config
+                        model=self._live_model, config=config
                     ) as session:
                         self.gemini_session = session
                         self._running = True
@@ -429,7 +429,7 @@ class SpectraStreamingSession:
                         # Reset per-turn state that may be stale from the dead session.
                         self._text_buffer = []
                         self._audio_sent_this_turn = False
-                        logger.info(f"Gemini Live session (re)connected using model: {LIVE_MODEL}")
+                        logger.info(f"Gemini Live session (re)connected using model: {self._live_model}")
                         if not _is_first_connect:
                             # On reconnect: suppress the greeting loop by sending the
                             # "stay silent" instruction BEFORE the silence burst.
@@ -448,10 +448,10 @@ class SpectraStreamingSession:
                                 pass
                         else:
                             # First connect: send minimal silence to prime VAD
-                            # Reduced size to prevent disconnection issues
+                            # Very small to prevent "yes ready" spam but keep connection alive
                             try:
                                 await session.send_realtime_input(
-                                    audio=types.Blob(data=b'\x00' * 1600, mime_type="audio/pcm;rate=16000")
+                                    audio=types.Blob(data=b'\x00' * 200, mime_type="audio/pcm;rate=16000")
                                 )
                                 self._last_input_time = time.time()
                             except Exception as prime_err:
@@ -473,6 +473,16 @@ class SpectraStreamingSession:
                                 # Screen has been shared before - don't ask again
                                 ctx_parts.append("[Screen sharing is active. User can see and interact normally.]")
                             
+                            # Inject extension status so Gemini knows upfront whether actions work
+                            if self._extension_available:
+                                ctx_parts.append("[Browser extension: INSTALLED. All browser actions work.]")
+                            else:
+                                ctx_parts.append(
+                                    "[IMPORTANT: Browser extension NOT installed. "
+                                    "Do NOT attempt click_element, type_text, scroll_page, press_key, or navigate — they will fail. "
+                                    "If asked to interact with the browser, tell the user to install the Spectra extension first.]"
+                                )
+
                             if self._current_url:
                                 ctx_parts.append(f"[Current page: {self._current_url}]")
                                 
@@ -485,13 +495,25 @@ class SpectraStreamingSession:
                                 await session.send_realtime_input(
                                     video=types.Blob(data=frame_bytes, mime_type="image/jpeg")
                                 )
+                                self._last_frame_time = time.time()  # reset cooldown after reconnect injection
                         except Exception as ctx_err:
                             logger.debug(f"Context re-injection skipped: {ctx_err}")
 
                         try:
-                            async for response in session.receive():
-                                if self._client_disconnected:
-                                    break
+                            # Use __anext__() directly instead of `async for` so the
+                            # loop persists across turn_complete boundaries.
+                            # `async for session.receive()` exits after turn_complete
+                            # because the SDK generator raises StopAsyncIteration —
+                            # that kills the session after every single response.
+                            _receiver = session.receive()
+                            while not self._client_disconnected:
+                                try:
+                                    response = await _receiver.__anext__()
+                                except StopAsyncIteration:
+                                    # turn_complete caused the generator to end —
+                                    # re-create it so we keep receiving on the same session
+                                    _receiver = session.receive()
+                                    continue
 
                                 if response.server_content:
                                     sc = response.server_content
@@ -515,24 +537,34 @@ class SpectraStreamingSession:
                                         for part in sc.model_turn.parts:
                                             if part.inline_data:
                                                 self._audio_sent_this_turn = True
-                                                await self.websocket.send_json({
+                                                chunk = {
                                                     "type": "audio",
                                                     "data": base64.b64encode(part.inline_data.data).decode(),
                                                     "mime_type": part.inline_data.mime_type,
-                                                })
+                                                }
+                                                if self._audio_gate_open:
+                                                    await self.websocket.send_json(chunk)
+                                                else:
+                                                    self._audio_buffer.append(chunk)
+                                                    if self._audio_flush_task is None or self._audio_flush_task.done():
+                                                        self._audio_flush_task = asyncio.create_task(self._flush_audio_gate())
                                             if part.text:
                                                 if len(part.text) > 20:
                                                     logger.debug(f"Text part (len={len(part.text)}): {part.text[:80]}")
                                                 self._text_buffer.append(part.text)
 
                                     if sc.turn_complete:
+                                        # Flush any audio still in the gate buffer
+                                        if self._audio_flush_task and not self._audio_flush_task.done():
+                                            self._audio_flush_task.cancel()
+                                        for msg in self._audio_buffer:
+                                            await self.websocket.send_json(msg)
+                                        self._audio_buffer.clear()
+                                        self._audio_gate_open = False
+
                                         if self._text_buffer:
                                             full_text = "".join(self._text_buffer)
                                             self._text_buffer = []
-                                            # Only show text in chat if NO audio was sent this turn.
-                                            # When audio IS sent, the text is often in a different
-                                            # language than the audio (e.g. Arabic text + English audio)
-                                            # which confuses the user. Audio is the primary output.
                                             if not self._audio_sent_this_turn:
                                                 cleaned = postprocess_spectra_reply(full_text)
                                                 is_valid, violations = validate_system_instruction_response(cleaned)
@@ -543,10 +575,18 @@ class SpectraStreamingSession:
                                                         "type": "text",
                                                         "data": cleaned,
                                                     })
-                                        self._audio_sent_this_turn = False  # reset for next turn
+                                        self._audio_sent_this_turn = False
                                         await self.websocket.send_json({"type": "turn_complete"})
 
                                 if response.tool_call:
+                                    # Discard pre-tool-call audio (premature "done!" narration).
+                                    if self._audio_flush_task and not self._audio_flush_task.done():
+                                        self._audio_flush_task.cancel()
+                                    discarded = len(self._audio_buffer)
+                                    self._audio_buffer.clear()
+                                    self._audio_gate_open = True  # post-tool audio flows directly
+                                    if discarded > 0:
+                                        logger.info(f"🔇 Discarded {discarded} premature audio chunks before tool call")
                                     await self._handle_tool_calls(response.tool_call)
 
                                 # go_away: server asking us to reconnect after time_left
@@ -558,25 +598,21 @@ class SpectraStreamingSession:
                                     _go_away_wait = wait_secs
                                     break
 
-                        except Exception as e:
-                            logger.error(f"Gemini receive error: {type(e).__name__}: {e}", exc_info=True)
-                            # Removed rate limit special handling - treat all errors equally
-                            _reconnect_delay = min(_reconnect_delay * 2, 30)
+                            _reconnect_delay = 1.0  # clean exit = reset backoff
 
-                        else:
-                            session_age = time.time() - _session_start_time
-                            if session_age >= 10.0:  # Increased from 5.0s to 10.0s
-                                logger.warning("Gemini receive loop exited cleanly")
-                                _reconnect_delay = 1.0  # healthy session = reset backoff
-                            else:
-                                logger.warning(f"Gemini receive loop exited cleanly after {session_age:.1f}s — backing off")
-                                _reconnect_delay = min(_reconnect_delay * 1.5, 30)  # Gentler backoff
+                        except Exception as e:
+                            if self._client_disconnected:
+                                break
+                            logger.error(f"Gemini receive error: {type(e).__name__}: {e}", exc_info=True)
+                            _reconnect_delay = min(_reconnect_delay * 2, 30)
 
                         finally:
                             self._running = False
                             self.gemini_session = None
 
                 except Exception as e:
+                    if self._client_disconnected:
+                        break
                     logger.error(f"Gemini connection error: {e}", exc_info=True)
                     self._running = False
                     self.gemini_session = None
@@ -588,7 +624,7 @@ class SpectraStreamingSession:
                         try:
                             await self.websocket.send_json({
                                 "type": "text",
-                                "data": f"⚠️ Gemini Live API Error: The model '{LIVE_MODEL}' is not available for voice chat. This is a known limitation of the Gemini Live API. Please try again later or check Google's documentation for available models."
+                                "data": f"⚠️ Gemini Live API Error: The model '{self._live_model}' is not available for voice chat. This is a known limitation of the Gemini Live API. Please try again later or check Google's documentation for available models."
                             })
                         except Exception:
                             pass
@@ -617,6 +653,7 @@ class SpectraStreamingSession:
             self.gemini_session = None
             client_task.cancel()
             heartbeat_task.cancel()
+            keepalive_task.cancel()
             try:
                 await client_task
             except Exception:
@@ -625,16 +662,31 @@ class SpectraStreamingSession:
                 await heartbeat_task
             except Exception:
                 pass
+            try:
+                await keepalive_task
+            except Exception:
+                pass
 
     async def cleanup(self):
         """Enhanced cleanup with preference and memory persistence."""
         self._running = False
         self._client_disconnected = True
+
+        # Close the Gemini session first so the receive loop terminates
         if self.gemini_session:
             try:
                 await self.gemini_session.close()
-            except:
+            except Exception:
                 pass
+            self.gemini_session = None
+
+        # Close the browser WebSocket so _listen_client() exits and the
+        # run() reconnect loop stops.  Without this, the old session's
+        # run() keeps reconnecting to Gemini after being replaced.
+        try:
+            await self.websocket.close(code=1000, reason="replaced by new session")
+        except Exception:
+            pass
         
         # Mark session as closed in session manager (but don't remove it)
         # This allows reconnection without losing state
@@ -648,11 +700,49 @@ class SpectraStreamingSession:
         # Save memory
         try:
             self.memory.save()
-            logger.debug(f"💾 Saved memory for user {self.user_id}")
         except Exception as e:
             logger.warning(f"Failed to save memory: {e}")
         
-        logger.debug(f"🧹 Session cleanup completed for user {self.user_id} (session preserved for reconnection)")
+        logger.debug("Session cleanup completed for user %s", self.user_id)
+
+    async def _flush_audio_gate(self):
+        """Flush the audio buffer after a brief hold-off.
+
+        Called as an asyncio task. If a tool_call arrives before this fires,
+        the task is cancelled and the buffer is discarded instead.
+        """
+        try:
+            await asyncio.sleep(0.20)
+            buf = list(self._audio_buffer)
+            self._audio_buffer.clear()
+            self._audio_gate_open = True
+            for msg in buf:
+                if not self._client_disconnected:
+                    await self.websocket.send_json(msg)
+        except asyncio.CancelledError:
+            pass
+
+    async def _gemini_keepalive(self):
+        """Send tiny silence bursts periodically to keep the Gemini Live session alive.
+
+        The Vertex AI Live API closes the stream if no input arrives for several
+        seconds.  We only send silence when there's been no real input recently,
+        to avoid interfering with VAD during active conversation.
+        """
+        _SILENCE = b'\x00' * 100  # 6.25ms @ 16kHz — below VAD threshold
+        while not self._client_disconnected:
+            try:
+                await asyncio.sleep(2.0)
+                if self.gemini_session and self._running:
+                    time_since_input = time.time() - self._last_input_time
+                    if time_since_input >= 1.5:
+                        await self.gemini_session.send_realtime_input(
+                            audio=types.Blob(data=_SILENCE, mime_type="audio/pcm;rate=16000")
+                        )
+            except asyncio.CancelledError:
+                break
+            except Exception:
+                pass  # Session may be reconnecting — silently skip
 
     async def _send_heartbeats(self):
         """Heartbeat loop — runs for the full WebSocket lifetime across Gemini reconnects."""
@@ -691,18 +781,7 @@ class SpectraStreamingSession:
                         self._client_disconnected = True
                         break
 
-                # Gemini keep-alive — only when Gemini session is live
-                # Threshold is 1s (not 2s) to send keep-alive more frequently
-                if self.gemini_session and self._running:
-                    time_since_input = time.time() - self._last_input_time
-                    if 3.0 < time_since_input < 60.0:  # Less aggressive keep-alive
-                        try:
-                            silence = b'\x00' * 400  # Reduced to prevent disconnections
-                            await self.gemini_session.send_realtime_input(
-                                audio=types.Blob(data=silence, mime_type="audio/pcm;rate=16000")
-                            )
-                        except Exception as keep_alive_err:
-                            logger.debug(f"Keep-alive skipped: {keep_alive_err}")
+                # Gemini keep-alive is handled by _gemini_keepalive() task (runs every 0.5s)
                     
                     # First-time user onboarding - DISABLED to prevent continuous talking
                     # Users will get onboarding help when they actually ask for it
@@ -788,6 +867,11 @@ class SpectraStreamingSession:
                     #         logger.debug(f"Onboarding context injection failed: {e}")
 
                     if self.gemini_session and self._running:
+                        # Rate-limit to 1 FPS — Live API max for image input
+                        now = time.time()
+                        if now - self._last_frame_time < self._frame_cooldown:
+                            continue  # drop this frame, too soon
+                        self._last_frame_time = now
                         try:
                             await self.gemini_session.send_realtime_input(
                                 video=types.Blob(data=frame_bytes, mime_type="image/jpeg")
@@ -819,35 +903,11 @@ class SpectraStreamingSession:
                             logger.info(f"💭 Memory command handled: '{text}'")
                             continue
                         
-                        if True:  # location queries handled by Gemini via system instruction
-                            # Check for voice commands (accessibility enhancement)
-                            if self.voice_processor.is_voice_command(text):
-                                logger.info(f"🎤 Voice command detected: '{text}'")
-                                
-                                try:
-                                    # Preprocess command with full context (Task 4.3)
-                                    preprocessed_result = await self._preprocess_voice_command(text)
-                                    
-                                    if preprocessed_result["status"] == "success":
-                                        # Command was successfully preprocessed and sent to Gemini
-                                        logger.info(f"✅ Voice command preprocessed: {preprocessed_result['action']} -> {preprocessed_result.get('target', 'N/A')}")
-                                    elif preprocessed_result["status"] == "ambiguous":
-                                        # Ambiguous command - provide suggestions
-                                        await self._handle_ambiguous_command(text, preprocessed_result)
-                                    elif preprocessed_result["status"] == "unknown":
-                                        # Unknown command - provide suggestions and fallback
-                                        await self._handle_unknown_command(text, preprocessed_result)
-                                        
-                                except Exception as e:
-                                    logger.error(f"Voice command processing failed: {e}")
-                                    # Fallback to normal processing on error
-                                    await self._process_normal_text_message(text)
-                            else:
-                                # Normal text processing (existing workflow logic)
-                                await self._process_normal_text_message(text)
-                                
-                            # Update conversation context for pronoun resolution (Task 4.3)
-                            self._update_conversation_context(text)
+                        # Send everything directly to Gemini — it handles natural language
+                        # commands natively. The VoiceCommandProcessor layer was causing
+                        # double-handling (frontend ack + Gemini response) and confusing
+                        # "I didn't understand" messages for valid commands.
+                        await self._process_normal_text_message(text)
                         
                         self._last_input_time = time.time()
                         self._last_activity = time.time()
@@ -857,6 +917,28 @@ class SpectraStreamingSession:
                     result = msg.get("result", "unknown")
                     await self._action_queue.put(msg)
                     self._last_activity = time.time()
+
+                elif msg_type == "extension_status":
+                    available = msg.get("available", False)
+                    self._extension_available = available
+                    logger.info(f"Extension status: {'available' if available else 'NOT available'}")
+                    if self.gemini_session and self._running:
+                        try:
+                            if available:
+                                ctx = "[Browser extension is installed and active. All browser actions (click, type, scroll, navigate, press_key) will work normally.]"
+                            else:
+                                ctx = (
+                                    "[IMPORTANT: The Spectra browser extension is NOT installed. "
+                                    "Browser actions like click_element, type_text, scroll_page, press_key, and navigate will FAIL. "
+                                    "If the user asks you to click, type, scroll, or navigate: "
+                                    "1. Tell them the extension is not installed. "
+                                    "2. Explain they need to install it from the Chrome Web Store or load it as an unpacked extension. "
+                                    "3. You CAN still describe the screen, answer questions, and have a conversation. "
+                                    "Do NOT attempt browser actions — they will fail with extension_unavailable.]"
+                                )
+                            await self.gemini_session.send_realtime_input(text=ctx)
+                        except Exception as e:
+                            logger.debug(f"Extension status injection skipped: {e}")
 
         except WebSocketDisconnect as e:
             if e.code == 1001:
@@ -880,6 +962,9 @@ class SpectraStreamingSession:
         
         # Additional cleanup for any remaining artifacts
         cleaned = re.sub(r"<think>.*?</think>", "", cleaned, flags=re.DOTALL)
+        
+        # Normalize whitespace after tag removal
+        cleaned = re.sub(r'\s+', ' ', cleaned)
         
         return cleaned.strip()
 
@@ -936,6 +1021,8 @@ class SpectraStreamingSession:
                     params["_captureHeight"] = self._capture_height
 
                 action_id = str(uuid.uuid4())[:8]
+                logger.info("→ Sending action to extension: %s(%s) id=%s",
+                            fc.name, {k: v for k, v in params.items() if not k.startswith("_")}, action_id)
                 await self.websocket.send_json({
                     "type": "action",
                     "action": fc.name,
@@ -948,8 +1035,10 @@ class SpectraStreamingSession:
                         self._action_queue.get(), timeout=ACTION_TIMEOUT
                     )
                     result = action_msg.get("result", "done")
+                    logger.info("← Action result for %s: %s", fc.name, result[:120])
                 except asyncio.TimeoutError:
                     result = "timeout: action took too long"
+                    logger.warning("⏱ Action timeout for %s (id=%s)", fc.name, action_id)
 
                 # Track current URL after successful navigation
                 if fc.name == "navigate":
@@ -1010,7 +1099,11 @@ class SpectraStreamingSession:
                     await self.gemini_session.send_tool_response(
                         function_responses=function_responses
                     )
-                    logger.info("Tool responses sent successfully")
+                    tool_summary = ", ".join(
+                        f"{fr.name}→{str(fr.response.get('result',''))[:80]}"
+                        for fr in function_responses
+                    )
+                    logger.info(f"Tool responses: [{tool_summary}]")
                     
                     # Log interaction for fine-tuning dataset
                     # Note: We'll log the full interaction when we get the model response
@@ -1130,10 +1223,10 @@ class SpectraStreamingSession:
                     logger.warning("⚠️ No current frame but screen was previously shared — this may cause hallucination")
                     focus = args.get("focus_area", args.get("focus", "")) or "full"
                     return (
-                        f"[SCREEN IS SHARED] The screen feed has momentarily paused (navigation or tab switch). "
-                        f"Describe the last visible state of the screen based on your video context. "
-                        f"Focus: {focus}. Do NOT ask the user to share their screen again. "
-                        f"IMPORTANT: Only describe what you actually saw in the video feed - do not make up or guess content."
+                        f"[SCREEN CONTEXT READY] The screen feed has momentarily paused (navigation or tab switch). "
+                        f"Use the last visible state from your video context. Focus: {focus}. "
+                        f"PROCEED with the user's request — click, type, or answer. "
+                        f"Do NOT ask the user to share their screen again."
                     )
                 if not hasattr(self, '_screen_share_requested'):
                     self._screen_share_requested = True
@@ -1153,16 +1246,9 @@ class SpectraStreamingSession:
             logger.warning(f"⚠️ Frame is {frame_age:.1f}s old - may cause outdated descriptions")
 
         prompt = (
-            f"[SCREEN IS SHARED] "
-            f"Describe EXACTLY what you see on the screen right now based on the video feed. "
-            f"Focus: {focus}. Resolution: {self._capture_width}x{self._capture_height}. "
-            f"Frame hash: {self._frame_hash}. "
-            f"CRITICAL: Only describe what is actually visible in the current video frame. "
-            f"Do NOT make up, guess, or hallucinate content. If you cannot see the screen clearly, say so. "
-            f"Include: the website/app name, page title, all visible text headings, "
-            f"buttons and links with their approximate x,y coordinates (for clicking), "
-            f"input fields, images, and current state. "
-            f"Be concise — your user is listening, not reading."
+            f"[SCREEN VISIBLE — {self._capture_width}x{self._capture_height}, focus: {focus}] "
+            f"Act now. Do NOT describe what you see unless the user asked for a description. "
+            f"If the user wants an action → call the tool immediately. No speech first."
         )
 
         logger.info(f"🔍 describe_screen ({focus}, {self._capture_width}x{self._capture_height}, frame_age={frame_age:.1f}s)")
@@ -1403,26 +1489,23 @@ class SpectraStreamingSession:
     async def _process_normal_text_message(self, text: str):
         """Process normal text messages with workflow detection (extracted from main handler)."""
 
-        # ── Auto-describe screen for visual queries ──────────────────────────
+        # ── Re-send latest frame for visual queries ──────────────────────────
         # If the user is asking about something on screen AND we have a frame,
-        # inject a fresh describe_screen result so Gemini sees the screen before
-        # generating a response instead of guessing/hallucinating.
-        screen_context = ""
-        if self._is_visual_query(text) and self._latest_frame:
+        # re-send the frame so Gemini has fresh visual context before responding.
+        # Do NOT inject describe_screen output as text — that's a prompt, not content.
+        if self._is_visual_query(text) and self._latest_frame and self.gemini_session and self._running:
             try:
-                screen_context = await self._describe_screen({"focus_area": "full"})
-                logger.info(f"👁️ Auto-described screen for visual query: '{text[:60]}'")
+                frame_bytes = base64.b64decode(self._latest_frame)
+                await self.gemini_session.send_realtime_input(
+                    video=types.Blob(data=frame_bytes, mime_type="image/jpeg")
+                )
+                self._last_frame_time = time.time()
+                logger.debug(f"👁️ Re-sent frame for visual query: '{text[:60]}'")
             except Exception as e:
-                logger.warning(f"Auto-describe failed: {e}")
+                logger.debug(f"Frame re-send for visual query skipped: {e}")
 
-        # Build the text to send — inject screen context when available
-        def _with_screen(base_text: str) -> str:
-            if screen_context:
-                return f"{base_text}\n\n[Screen content: {screen_context}]"
-            return base_text
-
-        # Check for workflow triggers before sending to Gemini
-        if not await self._send_to_gemini(_with_screen(text)):
+        # Send text to Gemini
+        if not await self._send_to_gemini(text):
             logger.warning("_send_to_gemini: voice command dropped (Gemini reconnecting)")
     # ━━━ ORCHESTRATOR HELPER METHODS ━━━
     
@@ -1436,9 +1519,9 @@ class SpectraStreamingSession:
         Returns:
             Enhanced system instruction with context-specific reminders
         """
-        from app.agents.orchestrator import get_confirmation_reminder
+        from app.agents.orchestrator import get_confirmation_reminder, SPECTRA_SYSTEM_INSTRUCTION
         
-        core_instruction = load_core_instruction()
+        core_instruction = SPECTRA_SYSTEM_INSTRUCTION
         
         # Add confirmation reminder if this is a destructive action
         reminder = get_confirmation_reminder(user_text)

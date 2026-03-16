@@ -7,7 +7,6 @@
 const EXTENSION_RESPONSE_TIMEOUT_MS = 15000;  // Reduced from 20s to 15s
 const EXTENSION_RETRY_DELAY_MS = 25;  // Reduced from 50ms to 25ms
 const MAX_RETRIES = 2;  // Keep at 2 for reliability
-const CONNECTION_POOL_SIZE = 3;  // Connection pooling
 const HEALTH_CHECK_INTERVAL = 5000;  // 5s health checks
 
 const isDev = process.env.NODE_ENV === "development";
@@ -237,18 +236,18 @@ function sendActionOnce(params: ExtensionActionParams): Promise<string> {
   const startTime = performance.now();
   
   return new Promise((resolve, reject) => {
-    // Store in pending requests (timeoutId added below so it's available in clearTimeout on resolve)
-    const entry: { resolve: Function; reject: Function; timestamp: number; timeoutId?: number } = {
-      resolve, reject, timestamp: Date.now()
-    };
-    pendingRequests.set(messageId, entry);
-
+    // Create timeout first so timeoutId is available immediately
     const timeoutId = window.setTimeout(() => {
       pendingRequests.delete(messageId);
       const duration = performance.now() - startTime;
       reject(new Error(`Extension timeout for action: ${params.action} (${duration.toFixed(1)}ms)`));
     }, EXTENSION_RESPONSE_TIMEOUT_MS);
-    entry.timeoutId = timeoutId;
+
+    // Store in pending requests with timeoutId immediately available
+    const entry: { resolve: Function; reject: Function; timestamp: number; timeoutId?: number } = {
+      resolve, reject, timestamp: Date.now(), timeoutId
+    };
+    pendingRequests.set(messageId, entry);
 
     // Send the message
     try {

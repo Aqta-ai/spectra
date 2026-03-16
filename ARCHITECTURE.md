@@ -37,7 +37,7 @@ graph TB
 
     %% Gemini Live API
     subgraph GeminiAPI["🤖 Gemini Live API"]
-        LiveModel[gemini-2.0-flash-exp]
+        LiveModel[gemini-2.5-flash<br/>native audio]
         AudioStream[🎵 Real-time Audio<br/>Aoede Voice + VAD]
         VisionAnalysis[👁️ Vision Analysis<br/>Screenshot Understanding]
         FunctionCalls[⚙️ Function Calling<br/>UI Action Tools]
@@ -45,7 +45,7 @@ graph TB
 
     %% Tool Categories
     subgraph ServerTools["🖥️ Server-side Tools"]
-        DescribeScreen[describe_screen<br/>Analyze UI elements]
+        DescribeScreen[describe_screen<br/>Analyse UI elements]
         SaveSnapshot[save_snapshot<br/>Reference screenshots]
         DiffScreen[diff_screen<br/>Compare changes]
         TeachApp[teach_me_app<br/>Guided tours]
@@ -138,7 +138,7 @@ graph TB
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                    GEMINI LIVE API (bidiGenerateContent)                     │
 │                                                                              │
-│  Model: gemini-2.0-flash-exp                                                 │
+│  Model: gemini-2.5-flash (native audio)                                       │
 │  • Native audio input/output (Aoede voice)                                   │
 │  • Real-time vision analysis of screenshots                                  │
 │  • Function calling for UI actions                                           │
@@ -299,17 +299,19 @@ Screenshots are captured at up to 1280×720. The extension scales coordinates fr
 ### Cloud Run — Spectra Backend
 ```yaml
 Service: spectra-backend
-Region: us-central1
+Region: europe-west1
 CPU: 2 vCPU
-Memory: 4 GiB
-Concurrency: 100
+Memory: 1 GiB
+Concurrency: 20
+Session Affinity: true
 Min Instances: 1
 Max Instances: 10
+Timeout: 3600s
 ```
 
 ## Scalability & Performance
 
-- **Response Time**: <200ms average
+- **Response Time**: Sub-second (real-time streaming)
 - **Concurrent Users**: 100+ supported
 - **Horizontal scaling**: Auto-scaling Cloud Run instances
 - **Geographic**: Multi-region deployment ready

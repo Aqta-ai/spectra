@@ -88,6 +88,17 @@ async function sendToTab(tabId, message, retries = 3) {
   let lastErr = null;
   for (let i = 0; i < retries; i++) {
     try {
+      // Verify tab still exists before sending (race condition fix)
+      try {
+        const tab = await chrome.tabs.get(tabId);
+        if (!tab) {
+          throw new Error(`Tab ${tabId} no longer exists`);
+        }
+      } catch (tabErr) {
+        // Tab doesn't exist or we don't have permission
+        throw new Error(`Tab ${tabId} no longer exists or is inaccessible`);
+      }
+      
       const result = await chrome.tabs.sendMessage(tabId, message);
       return result;
     } catch (err) {
