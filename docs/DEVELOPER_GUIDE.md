@@ -59,7 +59,7 @@ Spectra is an AI-powered accessibility assistant designed to help blind and visu
 1. **User Input**: Voice commands captured by frontend
 2. **WebSocket Streaming**: Real-time bidirectional communication with backend
 3. **Gemini Live API**: Processes voice input and generates responses
-4. **Vision Analysis**: Screen frames analyzed using Gemini Vision API
+4. **Vision Analysis**: Screen frames analysed using Gemini Vision API
 5. **Command Processing**: Natural language commands parsed and executed
 6. **Action Execution**: Browser extension executes UI actions
 7. **Audio Response**: Text-to-speech output delivered to user
@@ -626,7 +626,7 @@ Format a user-friendly response about the user's current location.
 - Low confidence: "I can see your screen but cannot determine the specific website or application"
 
 ##### `async handle_location_query(query: str, screen_description: str) -> Optional[str]`
-Handle a location query by analyzing screen content and returning a formatted response.
+Handle a location query by analysing screen content and returning a formatted response.
 
 **Parameters**:
 - `query`: The user's query text
@@ -901,7 +901,7 @@ print(f"Slow responses: {stats['vision_metrics']['slow_responses']}")
 ```
 
 **Solutions**:
-1. Optimize frame size (compress images)
+1. Optimise frame size (compress images)
 2. Increase cache TTL for similar frames
 3. Use regional API endpoints closer to your location
 4. Check network latency
@@ -1075,7 +1075,7 @@ def _generate_recommendations(stats, error_stats):
     recommendations = []
     
     if stats['vision_metrics']['avg_response_time'] > 2.0:
-        recommendations.append("Consider optimizing frame size or caching")
+        recommendations.append("Consider optimising frame size or caching")
     
     if stats['cache_metrics']['hit_rate'] < 70:
         recommendations.append("Increase cache TTL to improve hit rate")
@@ -1124,7 +1124,7 @@ async def startup_event():
 from backend.app.performance_monitor import get_performance_monitor
 
 async def analyze_screen(frame_data: str, focus: str = "full"):
-    """Analyze screen with performance monitoring."""
+    """Analyse screen with performance monitoring."""
     monitor = get_performance_monitor()
     
     # Wrap vision API call with monitoring
@@ -1288,9 +1288,9 @@ async def start_alert_monitoring():
     asyncio.create_task(alert_loop())
 ```
 
-### Performance Optimization Tips
+### Performance Optimisation Tips
 
-#### 1. Optimize Frame Size
+#### 1. Optimise Frame Size
 
 ```python
 from PIL import Image
@@ -1298,7 +1298,7 @@ import io
 import base64
 
 def optimize_frame(frame_data: str, max_size: int = 1024) -> str:
-    """Optimize frame size while maintaining quality."""
+    """Optimise frame size while maintaining quality."""
     # Decode base64
     frame_bytes = base64.b64decode(frame_data)
     
@@ -1396,7 +1396,7 @@ async def batch_vision_analysis(frames: List[str]) -> List[str]:
 1. **Monitor Continuously**: Set up continuous monitoring with alerts
 2. **Track Trends**: Monitor metrics over time to identify degradation
 3. **Set Realistic Thresholds**: Base thresholds on actual usage patterns
-4. **Optimize Proactively**: Address performance issues before they impact users
+4. **Optimise Proactively**: Address performance issues before they impact users
 5. **Cache Aggressively**: Use caching to reduce API calls and improve response times
 6. **Log Comprehensively**: Enable detailed logging for debugging
 7. **Test Under Load**: Regularly test system under realistic load conditions
@@ -1692,7 +1692,7 @@ async def test_vision_pipeline_end_to_end():
     # Load test frame
     frame_data = load_test_frame()
     
-    # Analyze with monitoring
+    # Analyse with monitoring
     result = await monitor.monitor_vision_call(
         vision_api.analyze,
         frame_data

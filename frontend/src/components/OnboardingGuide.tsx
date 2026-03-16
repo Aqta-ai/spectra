@@ -10,150 +10,172 @@ interface OnboardingGuideProps {
   hasSharedScreen: boolean;
   isConnected: boolean;
   onDismiss?: () => void;
+  onConnect?: () => void;
+  onComplete?: () => void;
 }
 
 export function OnboardingGuide({
-  isFirstTime,
   hasSharedScreen,
   isConnected,
   onDismiss,
+  onConnect,
+  onComplete,
 }: OnboardingGuideProps) {
-  const [isVisible, setIsVisible] = useState(false);
   const [step, setStep] = useState<'welcome' | 'share-screen' | 'ready'>('welcome');
+  const [isConnecting, setIsConnecting] = useState(false);
 
   useEffect(() => {
-    if (!isFirstTime || hasSharedScreen) {
-      setIsVisible(false);
-      return;
-    }
-
-    if (isConnected && !hasSharedScreen) {
-      setIsVisible(true);
+    if (!isConnected && !hasSharedScreen) {
+      setStep('welcome');
+      setIsConnecting(false);
+    } else if (isConnected && !hasSharedScreen) {
       setStep('share-screen');
-    }
-  }, [isFirstTime, hasSharedScreen, isConnected]);
-
-  useEffect(() => {
-    if (hasSharedScreen && step === 'share-screen') {
+      setIsConnecting(false);
+    } else if (isConnected && hasSharedScreen) {
       setStep('ready');
       // Auto-dismiss after showing success
-      setTimeout(() => {
-        setIsVisible(false);
+      const timer = setTimeout(() => {
+        onComplete?.();
         onDismiss?.();
       }, 3000);
+      return () => clearTimeout(timer);
     }
-  }, [hasSharedScreen, step, onDismiss]);
+  }, [isConnected, hasSharedScreen, onComplete, onDismiss]);
 
-  if (!isVisible) return null;
+  const handleConnect = () => {
+    setIsConnecting(true);
+    onConnect?.();
+  };
+
+  const handleDismiss = () => {
+    onComplete?.();
+    onDismiss?.();
+  };
 
   return (
     <div
-      className="fixed top-4 right-4 z-50 max-w-md bg-spectra-surface border border-spectra-primary/50 rounded-xl shadow-2xl p-6 animate-slide-in text-white"
+      className="fixed top-6 right-6 z-50 max-w-sm bg-gradient-to-br from-spectra-surface/95 to-spectra-surface/90 backdrop-blur-xl border border-spectra-primary/30 rounded-2xl shadow-2xl p-6 animate-slide-in text-white"
       role="dialog"
       aria-labelledby="onboarding-title"
       aria-describedby="onboarding-description"
     >
-      {step === 'share-screen' && (
-        <>
-          <div className="flex items-start gap-4">
-            <div className="flex-shrink-0">
-              <div className="w-12 h-12 bg-spectra-primary rounded-full flex items-center justify-center">
-                <svg
-                  className="w-6 h-6 text-white"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-                  />
-                </svg>
-              </div>
-            </div>
-            <div className="flex-1">
-              <h3
-                id="onboarding-title"
-                className="text-lg font-semibold text-gray-900 dark:text-white mb-2"
-              >
-                Welcome to Spectra! 👋
-              </h3>
-              <p
-                id="onboarding-description"
-                className="text-gray-600 dark:text-gray-300 mb-4"
-              >
-                I'm your voice-controlled screen assistant. To get started, I need to see your screen.
-              </p>
-              <div className="bg-spectra-primary/20 rounded-lg p-4 mb-4 border border-spectra-primary/30">
-                <p className="text-sm font-medium text-white mb-2">
-                  Press <kbd className="px-2 py-1 bg-white/10 rounded border border-white/20 font-mono text-sm">W</kbd> to share your screen
-                </p>
-                <p className="text-xs text-white/70">
-                  This allows me to see what's on your screen so I can help you navigate, click buttons, and more!
-                </p>
-              </div>
-              <div className="space-y-2 text-sm text-white/70">
-                <p className="flex items-center gap-2">
-                  <span className="text-spectra-secondary">✓</span>
-                  Describe any webpage
-                </p>
-                <p className="flex items-center gap-2">
-                  <span className="text-spectra-secondary">✓</span>
-                  Click buttons and links
-                </p>
-                <p className="flex items-center gap-2">
-                  <span className="text-spectra-secondary">✓</span>
-                  Fill out forms
-                </p>
-                <p className="flex items-center gap-2">
-                  <span className="text-spectra-secondary">✓</span>
-                  Navigate websites hands-free
-                </p>
-              </div>
+      {/* X Button - Always visible */}
+      <button
+        onClick={handleDismiss}
+        className="absolute top-3 right-3 text-white/50 hover:text-white/90 transition-colors p-1 rounded-lg hover:bg-white/10"
+        aria-label="Dismiss onboarding"
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+
+      {step === 'welcome' && (
+        <div className="flex items-start gap-4">
+          <div className="flex-shrink-0">
+            <div className="w-10 h-10 bg-gradient-to-br from-spectra-primary to-spectra-secondary rounded-xl flex items-center justify-center shadow-lg">
+              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
             </div>
           </div>
-          <button
-            onClick={() => {
-              setIsVisible(false);
-              onDismiss?.();
-            }}
-            className="absolute top-2 right-2 text-white/50 hover:text-white"
-            aria-label="Dismiss onboarding"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </>
+          <div className="flex-1 pr-6">
+            <h3 id="onboarding-title" className="text-lg font-semibold text-white mb-2">
+              Welcome to Spectra
+            </h3>
+            <p id="onboarding-description" className="text-white/80 text-sm mb-4">
+              Your voice assistant for hands-free web navigation.
+            </p>
+            
+            <div className="space-y-3 mb-4">
+              <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-spectra-primary/10 to-spectra-secondary/10 rounded-xl border border-spectra-primary/20">
+                <div className="w-5 h-5 bg-spectra-primary rounded-full flex items-center justify-center text-white text-xs font-bold">1</div>
+                <div>
+                  <p className="text-sm font-medium text-white">Connect</p>
+                  <p className="text-xs text-white/70">Press <kbd className="px-1.5 py-0.5 bg-white/10 rounded border border-white/20 font-mono text-xs">Q</kbd> or click below</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 p-3 bg-white/5 rounded-xl border border-white/10">
+                <div className="w-5 h-5 bg-white/20 rounded-full flex items-center justify-center text-white text-xs font-bold">2</div>
+                <div>
+                  <p className="text-sm font-medium text-white/70">Share screen</p>
+                  <p className="text-xs text-white/60">Press <kbd className="px-1.5 py-0.5 bg-white/10 rounded border border-white/20 font-mono text-xs">W</kbd> when connected</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={handleConnect}
+                disabled={isConnecting}
+                className="flex-1 px-4 py-2.5 bg-gradient-to-r from-spectra-primary to-spectra-secondary hover:from-spectra-primary/90 hover:to-spectra-secondary/90 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium rounded-xl transition-all text-sm focus:outline-none focus:ring-2 focus:ring-spectra-primary/50 flex items-center justify-center gap-2 shadow-lg"
+              >
+                {isConnecting ? (
+                  <>
+                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                    </svg>
+                    Connecting...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    Get Started
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {step === 'share-screen' && (
+        <div className="flex items-start gap-4">
+          <div className="flex-shrink-0">
+            <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center shadow-lg">
+              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+          </div>
+          <div className="flex-1 pr-6">
+            <h3 id="onboarding-title" className="text-lg font-semibold text-white mb-2">
+              Almost there!
+            </h3>
+            <p id="onboarding-description" className="text-white/80 text-sm mb-4">
+              Now let's share your screen so I can help you navigate.
+            </p>
+            <div className="bg-gradient-to-r from-spectra-primary/10 to-spectra-secondary/10 rounded-xl p-4 border border-spectra-primary/20">
+              <p className="text-sm font-medium text-white mb-2 flex items-center gap-2">
+                <kbd className="px-2 py-1 bg-white/10 rounded border border-white/20 font-mono text-sm">W</kbd>
+                Press W to share your screen
+              </p>
+              <p className="text-xs text-white/70">
+                This allows me to see what's on your screen so I can help you click, scroll, and navigate.
+              </p>
+            </div>
+          </div>
+        </div>
       )}
 
       {step === 'ready' && (
         <div className="flex items-center gap-4">
           <div className="flex-shrink-0">
-            <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center">
-              <svg
-                className="w-6 h-6 text-white"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M5 13l4 4L19 7"
-                />
+            <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center shadow-lg">
+              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
             </div>
           </div>
-          <div className="flex-1">
+          <div className="flex-1 pr-6">
             <h3 className="text-lg font-semibold text-white mb-1">
-              Screen shared — ready to help
+              Perfect! You're all set
             </h3>
             <p className="text-sm text-white/80">
-              I'm ready to help. Just ask me anything!
+              I'm ready to help. Just say "Hey Spectra" or press Q to start.
             </p>
           </div>
         </div>

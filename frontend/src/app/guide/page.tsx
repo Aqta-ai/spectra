@@ -117,14 +117,11 @@ export default function GuidePage() {
           Privacy
         </h2>
         <div className="space-y-3 text-sm text-spectra-muted pl-9">
-          <p>Nothing touches disk. Nothing persists.</p>
           <p>
-            Screenshots are held in memory only, each new frame replaces the last.
-            When your session ends, the data is garbage collected. No files, no database, no cloud storage.
-          </p>
-          <p>
-            The only external service that sees your screen is the AI vision API for analysis.
-            No other third parties are involved.
+            Spectra only processes data while a session is active, nothing is stored,
+            recorded, or retained. Screen and voice data are streamed to Google&apos;s
+            Gemini API in real time for understanding and are never saved. When your
+            session ends, everything is discarded. No accounts, no tracking, no analytics.
           </p>
         </div>
       </section>
@@ -157,6 +154,8 @@ export default function GuidePage() {
           Spectra
           {" · "}
           <Link href="/" className="hover:text-white/50 transition-colors">Spectra</Link>
+          {" · "}
+          <Link href="/privacy" className="hover:text-white/50 transition-colors">Privacy</Link>
           {" · "}
           <Link href="/overlay" className="hover:text-white/50 transition-colors">Overlay</Link>
           {" · "}

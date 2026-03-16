@@ -124,8 +124,14 @@ export function useWakeWord({
         }
       };
 
-      recognition.start();
-      recognitionRef.current = recognition;
+      try {
+        recognition.start();
+        recognitionRef.current = recognition;
+      } catch (startError) {
+        console.error('[WakeWord] recognition.start() failed:', startError);
+        setIsListening(false);
+        throw startError; // Re-throw to be caught by outer try-catch
+      }
     } catch (error) {
       console.error('[WakeWord] Failed to start:', error);
       setIsListening(false);

@@ -306,7 +306,7 @@ class ActionPredictor:
             if form_count > 0 and any(word in command for word in ['fill', 'complete', 'submit']):
                 predictions.append(PredictedAction(
                     action_type='type_text',
-                    confidence=0.8,
+                    confidence=0.99,  # Higher confidence than pattern matching
                     params={'target': 'form_field', 'form_aware': True}
                 ))
         
@@ -557,13 +557,24 @@ class FastResponsePipeline:
                 if processing_time < 0.2:
                     self.metrics['sub_200ms_responses'] += 1
                 
-                return {
+                # Get cached description if available
+                cached_description = await self._get_cached_description(frame_hash)
+                
+                response = {
                     'frame_hash': frame_hash,
                     'frame_changed': frame_changed,
-                    'cached_response': cached_intent,
+                    'cached_description': cached_description,
+                    'predictions': [],
+                    'intent': cached_intent,
+                    'cached_elements': [],
                     'processing_time': processing_time,
                     'cache_hit': True
                 }
+                
+                # Update metrics before returning
+                self._update_metrics(response)
+                
+                return response
         
         # Parallel processing: multiple optimizations running concurrently
         async with self.parallel_executor:
@@ -623,10 +634,10 @@ class FastResponsePipeline:
             'frame_changed': frame_changed,
             'cached_description': cached_description,
             'predictions': predictions,
-            'intent': intent,
+            'intent': intent or {'type': 'unknown', 'confidence': 0.5},  # Ensure intent is always present
             'cached_elements': elements,
             'processing_time': time.time() - start_time,
-            'cache_hit': False
+            'cache_hit': cached_description is not None
         }
         
         # Update metrics

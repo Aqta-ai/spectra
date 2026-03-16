@@ -165,14 +165,12 @@ export class PcmAudioPlayer {
 
   /** Smoothly fade out and stop all audio */
   stop(): void {
-    // Clear pending done-callback , caller is stopping intentionally
+    // Clear pending done-callback — caller is stopping intentionally
     this.doneCallback = null;
     if (this.gainNode && this.audioContext) {
       try {
-        this.gainNode.gain.linearRampToValueAtTime(
-          0,
-          this.audioContext.currentTime + 0.1
-        );
+        this.gainNode.gain.cancelScheduledValues(this.audioContext.currentTime);
+        this.gainNode.gain.setValueAtTime(0, this.audioContext.currentTime);
       } catch {
         // Context may already be closed
       }
@@ -182,9 +180,10 @@ export class PcmAudioPlayer {
     this.isPlaying = false;
     this.chunkCount = 0;
     this.pendingChunks = 0;
-    this.audioContext?.close();
-    this.audioContext = null;
-    this.gainNode = null;
+    // Do NOT close the AudioContext — closing it means the next play() call
+    // creates a new one outside a user gesture, which Chrome suspends.
+    // Instead, keep it alive and just reset the scheduling state.
+    // The context will be reused on the next play() call.
   }
 
   /**
@@ -197,6 +196,14 @@ export class PcmAudioPlayer {
     this.initAudioContext();
     if (this.audioContext?.state === "suspended") {
       this.audioContext.resume().catch(() => {});
+    }
+    // Restore gain to 1.0 — stop() sets it to 0 to silence audio immediately.
+    // Without this, the next session plays silently.
+    if (this.gainNode && this.audioContext) {
+      try {
+        this.gainNode.gain.cancelScheduledValues(this.audioContext.currentTime);
+        this.gainNode.gain.setValueAtTime(1.0, this.audioContext.currentTime);
+      } catch { /* ignore */ }
     }
   }
 

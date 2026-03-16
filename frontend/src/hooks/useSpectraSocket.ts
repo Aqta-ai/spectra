@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useCallback, useState } from "react";
+import { useRef, useCallback, useState, useEffect } from "react";
 
 interface SpectraSocketOptions {
   onText: (text: string) => void;
@@ -263,6 +263,16 @@ export function useSpectraSocket(options: SpectraSocketOptions) {
   }, [scheduleReconnect]);
 
   const connectInternal = useCallback(() => {
+    // Guard: close any existing WebSocket before opening a new one.
+    // Without this, reconnection creates a second WS while the first
+    // is still alive → duplicate Gemini sessions → double audio.
+    if (wsRef.current && wsRef.current.readyState !== WebSocket.CLOSED) {
+      const old = wsRef.current;
+      wsRef.current = null;
+      old.onclose = null;
+      old.close(1000);
+    }
+
     const url = getWsUrl();
     const ws = new WebSocket(url);
 
@@ -273,6 +283,11 @@ export function useSpectraSocket(options: SpectraSocketOptions) {
       setIsConnected(true);
       lastPongRef.current = Date.now();
       optionsRef.current.onConnect();
+      // Tell the backend whether the browser extension is installed.
+      // The backend injects this into Gemini's context so it knows upfront
+      // whether browser actions (click, type, navigate, scroll) will work.
+      const extAvailable = typeof window !== 'undefined' && !!(window as any).spectraExtensionAvailable;
+      ws.send(JSON.stringify({ type: "extension_status", available: extAvailable }));
       flushQueue(ws);
     };
 
@@ -334,6 +349,9 @@ export function useSpectraSocket(options: SpectraSocketOptions) {
         setIsConnected(true);
         lastPongRef.current = Date.now();
         optionsRef.current.onConnect();
+        // Tell backend whether the extension is installed
+        const extAvailable = typeof window !== 'undefined' && !!(window as any).spectraExtensionAvailable;
+        ws.send(JSON.stringify({ type: "extension_status", available: extAvailable }));
         flushQueue(ws);
 
         // Re-wire for reconnection support
@@ -424,6 +442,34 @@ export function useSpectraSocket(options: SpectraSocketOptions) {
   const sendCancel = useCallback(() => {
     safeSend(JSON.stringify({ type: "cancel" }));
   }, [safeSend]);
+
+  // Cleanup on component unmount
+  useEffect(() => {
+    return () => {
+      // Cleanup screen reader monitor
+      cleanupMonitorRef.current?.();
+      cleanupMonitorRef.current = null;
+
+      // Cleanup audio context
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
+        audioContextRef.current = null;
+        gainNodeRef.current = null;
+      }
+
+      // Cleanup WebSocket
+      if (wsRef.current) {
+        wsRef.current.close(1000);
+        wsRef.current = null;
+      }
+
+      // Cleanup reconnect timer
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+      }
+    };
+  }, []);
 
   return {
     connect,

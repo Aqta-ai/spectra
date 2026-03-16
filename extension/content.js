@@ -102,9 +102,13 @@ function scaleCoordinates(x, y, captureWidth, captureHeight) {
   if (!captureWidth || !captureHeight || captureWidth <= 0 || captureHeight <= 0) {
     return { x: Math.max(0, Math.min(vw - 1, x)), y: Math.max(0, Math.min(vh - 1, y)) };
   }
+  // Use Math.floor instead of Math.round for better precision on high-DPI displays
+  // elementFromPoint accepts floating-point coordinates, so we can keep decimal precision
+  const scaledX = x * (vw / captureWidth);
+  const scaledY = y * (vh / captureHeight);
   return {
-    x: Math.max(0, Math.min(vw - 1, Math.round(x * (vw / captureWidth)))),
-    y: Math.max(0, Math.min(vh - 1, Math.round(y * (vh / captureHeight)))),
+    x: Math.max(0, Math.min(vw - 1, Math.floor(scaledX))),
+    y: Math.max(0, Math.min(vh - 1, Math.floor(scaledY))),
   };
 }
 

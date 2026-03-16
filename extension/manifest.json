@@ -2,7 +2,8 @@
   "manifest_version": 3,
   "name": "Spectra",
   "version": "2.0.0",
-  "description": "AI screen reader and voice assistant — helps blind and hands-free users browse the web. Built by Anya, Aqta.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAz46eO7j6RYpZ6z6+J6W56WHXurdOCKUp3bM81vNVVGVlOapf/e5WUlCA/avvK7OLMqZ7LRwdY8FmhZf1QTILS0tkKGwpxljoYD3B71CzNQKFParXrvjdtLPPrfKCfaexG22b2hFGaZwh6342Lt9yaSVSy2cwb5AtFeEZIir51GtrYy1WSKWkAlH0JOQ3Wn4xtbXMUzcPthz6gVnf9deq6J80QLd1dvrktcDCD8wPLAEbwRJBIH63/5kwzVUaKmeumcqQTgjvgitgKgTAwtQiLdD7XYmyLCXWIG6Cle0SAQnfSKydqHAbCoz4xcOEZx4bdahp9G8I21HRp9Tm1p2GHwIDAQAB",
+  "description": "AI screen reader and voice assistant — helps blind and hands-free users browse the web. Built by Anya from Aqta.",
   "permissions": [
     "activeTab",
     "scripting",

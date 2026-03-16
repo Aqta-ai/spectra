@@ -43,101 +43,67 @@ logger = logging.getLogger(__name__)
 # System instruction now imported from system_instruction.py
 # SPECTRA_SYSTEM_INSTRUCTION is imported at the top of this file
 
-# Anti-narration patterns to filter from responses (non-greedy to prevent ReDoS)
-ANTI_NARRATION_PATTERNS = [
-    # Remove entire sentences with meta-commentary
-    r"I(?:'ve|'ve|\s+have) (?:begun|started|been|registered|initiated|analyzed|identified|located|detailed|pinpointed|completed|decided|compiled|employed)[^.!?]*?[.!?]",
-    r"I(?:'m|'m|\s+am) (?:currently|now) (?:focus|detail|examin|review|analyz|refining|combining|concentrating|cataloging|taking note|progressing)[^.!?]*?[.!?]",
-    r"(?:Let me|I(?:'ll|'ll|\s+will)) (?:now |begin |start |proceed to )?(?:analyz|examin|check|look at|describe|explain)[^.!?]*?[.!?]",
-    r"(?:First|Before I (?:can |proceed)),?\s+(?:let me|I(?:'ll|'ll|\s+will)|I need to)[^.!?]*?[.!?]",
-    r"My (?:next step|primary focus|focus|analysis) (?:will be|is)[^.!?]*?[.!?]",
-    r"I need to (?:understand|figure out|determine)[^.!?]*?[.!?]",
-    r"Looking at the screen,? I can see[^.!?]*?[.!?]",
-    r"Based on what I (?:see|can see),? I[^.!?]*?[.!?]",
-    r"To accomplish this[^.!?]*?[.!?]",
-    r"This (?:will allow|step is|is essential)[^.!?]*?[.!?]",
-    # Bold header patterns for internal reasoning (e.g., **Initiating Communication**)
-    r"\*\*[A-Z][^*]+\*\*\s*",
-    # Thinking tags
-    r"<think>.*?</think>",
-    # Sentences starting with gerunds (Initiating, Gathering, Refining, etc.)
-    r"(?:Initiating|Gathering|Refining|Analyzing|Understanding|Processing|Examining|Registering|Currently|Specifically)[^.!?]*?[.!?]\s*",
-    # Remove "Now, I am..." patterns
-    r"Now,?\s+I\s+am\s+\w+ing[^.!?]*?[.!?]",
-    # Remove fragments like "I am analyzing" or "I am"
-    r"I\s+am\s+(?:analyzing|examining|reviewing|understanding|processing|also making note)[^.!?]*?[.!?]",
-    # Remove "establishing a friendly interaction" type fragments
-    r"(?:establishing|creating|building|forming)\s+a\s+(?:friendly|clear|comprehensive)[^.!?]*?[.!?]",
-    # Remove "Currently, I'm..." patterns
-    r"Currently,?\s+I(?:'m|'m|\s+am)[^.!?]*?[.!?]",
-    # Remove "I've compiled/noted/pinpointed" patterns
-    r"I(?:'ve|'ve|\s+have)\s+(?:compiled|noted|pinpointed)[^.!?]*?[.!?]",
-    # Remove "I'm re-[verb]ing" inner-monologue patterns
-    r"I(?:'m|'m|\s+am)\s+re-?\w+ing\b[^.!?]*?[.!?]",
-    # Remove "I'm verifying/revisiting/exploring/retrying/prepared to..."
-    r"I(?:'m|'m|\s+am)\s+(?:verifying|revisiting|exploring|retrying|prepared\s+to|targeting)[^.!?]*?[.!?]",
-    # Remove "My next action/move is..."
-    r"My next (?:action|move|attempt)[^.!?]*?[.!?]",
-    # Remove "The previous attempt..."
-    r"The previous attempt[^.!?]*?[.!?]",
-    # Remove "A fresh screen description..."
-    r"A fresh (?:screen\s+)?description[^.!?]*?[.!?]",
-    # Remove "I'll target/retry/re-examine..."
-    r"I(?:'ll|'ll|\s+will)\s+(?:target|retry|re-\w+)[^.!?]*?[.!?]",
-    # Remove "Once I understand/have..."
-    r"Once I (?:understand|have|can|know)[^.!?]*?[.!?]",
-]
+# ---------------------------------------------------------------------------
+# Narration filtering — NO regex on sentence bodies (ReDoS-safe).
+# All sentence-level filtering is done via plain substring lookup on the
+# lowercased sentence.  Only the two bold-header patterns (which match a
+# fixed prefix/suffix, not an unbounded body) are kept as compiled regex.
+# ---------------------------------------------------------------------------
 
-# Constants now imported from config.py
-# DESTRUCTIVE_KEYWORDS, VISION_ERROR_TYPES, FORBIDDEN_SENTENCE_STARTS
-# are already imported at the top of the file
+# Forbidden substrings — only match clear inner-monologue / process narration.
+# IMPORTANT: Keep these specific enough that they don't match normal conversational
+# responses. E.g. "i'm seeing" would wrongly strip "I'm seeing three emails".
+# Only sentence-*start* patterns are checked via _is_narration().
+_NARRATION_SUBSTRINGS: frozenset = frozenset([
+    # "I've …" meta-commentary about internal process
+    "i've begun analyzing", "i've started analyzing", "i've analyzed the",
+    "i've identified the", "i've located the", "i've detailed the",
+    "i've pinpointed the", "i've compiled the", "i've employed",
+    "i've just refined", "i've now analyzed", "i've re-analyzed",
+    # "I am / I'm …" process narration (keep specific)
+    "i'm currently analyzing", "i am currently analyzing",
+    "i'm currently examining", "i am currently examining",
+    "i'm focusing on the screen", "i'm detailing the elements",
+    "i'm cataloging", "i'm taking note of",
+    "i'm zeroing in", "i'm re-examining the",
+    "i'm re-analyzing the", "i am re-analyzing",
+    # "Let me …" intent narration (only the meta ones)
+    "let me analyze the screen", "let me examine the elements",
+    "let me describe what i see internally",
+    # Goal/focus narration
+    "my next step is to", "my primary focus is", "my focus is on analyzing",
+    "my immediate task is", "my analysis shows",
+    # "I need to …" internal reasoning
+    "i need to understand the layout", "i need to figure out the",
+    "i need to determine the",
+    # Internal screen-observation narration
+    "looking at the screen description",
+    # Task narration (internal)
+    "to accomplish this i will", "this step is essential",
+    # Misc inner-monologue
+    "i plan to analyze", "i believe the user wants",
+    "the previous attempt failed", "a fresh screen description",
+    "a fresh description of", "its coordinates are",
+    "prime candidate for",
+    "appears incomplete", "lacks context", "remains ambiguous",
+])
 
-# Pre-compile regex patterns for performance
-COMPILED_ANTI_NARRATION_PATTERNS = [
-    re.compile(pattern, re.IGNORECASE)
-    for pattern in ANTI_NARRATION_PATTERNS
-]
+# Only these two patterns stay as regex — they match fixed delimiters (**…**),
+# not unbounded sentence bodies, so they cannot catastrophically backtrack.
+_BOLD_HEADER_RE = re.compile(r'\*\*[A-Z][^*]{1,80}\*\*\s*')
+_BOLD_THINKING_RE = re.compile(
+    r'\*\*(?:Analyzing|Thinking|Detailing|Examining|Noting|Identifying|Processing|Understanding)[^*]{0,80}\*\*',
+    re.IGNORECASE,
+)
+# Strip <think>…</think> blocks using plain string search (no regex needed).
+_THINK_OPEN = "<think>"
+_THINK_CLOSE = "</think>"
 
-# Bug fix: thinking_patterns list was duplicated inside remove_narration (once for
-# sentences with punctuation, once for trailing text without). Both copies had to
-# be kept in sync manually — patterns added to one were silently missed by the other.
-# Extracted to a module-level constant used in both places.
-_THINKING_PATTERN_STRINGS = [
-    "i've begun", "i'm now", "i've identified", "i've noted",
-    "my focus is", "my analysis", "to accomplish this",
-    "this will allow", "i'm zeroing", "i'm concentrating",
-    "i'm puzzled", "i'm viewing", "i'm still trying",
-    "i've now analyzed", "i plan to", "appears incomplete",
-    "lacks context", "remains ambiguous", "i've determined",
-    "i've just refined", "i'm starting with", "i'm preparing to",
-    "i've hit a snag", "i believe the user", "i will formulate",
-    "my immediate task", "i am seeing", "i'm seeing",
-    "i'm verifying", "i'm revisiting", "i'm re-examining",
-    "i'm exploring", "i'm retrying", "i'm prepared to",
-    "i'm re-analyzing", "my next action", "the previous attempt",
-    "a fresh screen", "its coordinates are", "i've re-analyzed",
-    "once i understand", "i'll target", "i'll retry", "prime candidate",
-]
-
-# Pre-compiled thinking paragraph patterns (non-greedy to prevent ReDoS)
-COMPILED_THINKING_PARAGRAPH_PATTERNS = [
-    re.compile(p, re.IGNORECASE) for p in [
-        r"I've determined[^.!?]*?[.!?]",
-        r"I've just refined[^.!?]*?[.!?]",
-        r"I'm starting with[^.!?]*?[.!?]",
-        r"I'm preparing to[^.!?]*?[.!?]",
-        r"I've hit a snag[^.!?]*?[.!?]",
-        r"I believe the user[^.!?]*?[.!?]",
-        r"I'm puzzled[^.!?]*?[.!?]",
-        r"I'm viewing[^.!?]*?[.!?]",
-        r"I'm still trying[^.!?]*?[.!?]",
-        r"I've now analyzed[^.!?]*?[.!?]",
-        r"I plan to[^.!?]*?[.!?]",
-        r"I will formulate[^.!?]*?[.!?]",
-        r"My immediate task[^.!?]*?[.!?]",
-        r"I am seeing[^.!?]*?[.!?]",
-    ]
-]
+# Keep for any external callers that imported these names.
+ANTI_NARRATION_PATTERNS: list = []
+COMPILED_ANTI_NARRATION_PATTERNS: list = []
+COMPILED_THINKING_PARAGRAPH_PATTERNS: list = []
+_THINKING_PATTERN_STRINGS: list = list(_NARRATION_SUBSTRINGS)
 
 
 def is_location_query(text: str) -> bool:
@@ -160,66 +126,77 @@ def is_location_query(text: str) -> bool:
 @track_performance("remove_narration")
 def remove_narration(text: Optional[str]) -> str:
     """
-    Aggressively remove thinking/process narration from responses.
-    
-    This is the FIRST line of defense against meta-commentary.
-    Strips entire sentences that contain forbidden patterns ANYWHERE.
+    Remove thinking/process narration from responses.
+
+    Fully ReDoS-safe: no unbounded regex on sentence bodies.
+    Uses plain string operations only:
+      1. Strip <think>…</think> blocks via str.find (O(n))
+      2. Strip **Bold Header** markers via bounded regex (max 80 chars)
+      3. Split on sentence-ending punctuation, drop sentences that
+         contain any narration substring (O(n * k) where k is fixed)
     """
-    if text is None or not isinstance(text, str):
+    if not text or not isinstance(text, str):
         return ""
-    # First, remove bold headers
-    text = re.sub(r'\*\*[A-Z][^*]+\*\*\s*', '', text)
-    text = re.sub(r'\*\*(?:Analyzing|Thinking|Detailing|Examining|Noting|Identifying|Processing|Understanding)[^*]*\*\*', '', text, flags=re.IGNORECASE)
-    
-    # Remove entire thinking paragraphs with pre-compiled regex
-    for pattern in COMPILED_THINKING_PARAGRAPH_PATTERNS:
-        text = pattern.sub('', text)
-    
-    # Split into sentences
-    sentences = re.split(r'([.!?])', text)
-    rebuilt = []
-    current = ""
-    
-    for chunk in sentences:
-        current += chunk
-        if chunk in ".!?":
-            s = current.strip()
-            lower = s.lower()
-            
-            # Check if sentence STARTS with forbidden pattern
-            is_forbidden_start = any(lower.startswith(bad) for bad in FORBIDDEN_SENTENCE_STARTS)
-            
-            # Check if sentence CONTAINS thinking patterns ANYWHERE (not just start)
-            has_thinking = any(pattern in lower for pattern in _THINKING_PATTERN_STRINGS)
-            
-            # ONLY keep sentence if it has NO forbidden patterns AND is long enough
-            if not is_forbidden_start and not has_thinking and len(s) > 10:
-                rebuilt.append(s)
-            
-            current = ""
-    
-    # Handle remaining text without trailing .!? (e.g. "You're on Gmail with 5 unread messages")
-    if current.strip():
-        s = current.strip()
-        lower = s.lower()
-        is_forbidden_start = any(lower.startswith(bad) for bad in FORBIDDEN_SENTENCE_STARTS)
-        has_thinking = any(p in lower for p in _THINKING_PATTERN_STRINGS)
-        if not is_forbidden_start and not has_thinking and len(s) > 10:
+
+    # 1. Strip <think>…</think> blocks — plain string search, no regex
+    while True:
+        start = text.find(_THINK_OPEN)
+        if start == -1:
+            break
+        end = text.find(_THINK_CLOSE, start)
+        if end == -1:
+            # No closing tag — drop everything from <think> onward
+            text = text[:start]
+            break
+        text = text[:start] + " " + text[end + len(_THINK_CLOSE):]
+
+    # 2. Strip **Bold Header** markers (bounded regex — safe)
+    text = _BOLD_HEADER_RE.sub('', text)
+    text = _BOLD_THINKING_RE.sub('', text)
+
+    # 3. Sentence-level narration filter — pure substring lookup
+    parts = re.split(r'([.!?]+)', text)   # split preserving punctuation
+    rebuilt: list[str] = []
+    buf = ""
+    for chunk in parts:
+        buf += chunk
+        if chunk and chunk[-1] in ".!?":
+            s = buf.strip()
+            if s:
+                lower = s.lower()
+                if not _is_narration(lower):
+                    rebuilt.append(s)
+            buf = ""
+
+    # Trailing fragment without punctuation
+    if buf.strip():
+        s = buf.strip()
+        if not _is_narration(s.lower()):
             rebuilt.append(s)
-    
-    cleaned = " ".join(rebuilt).strip()
-    cleaned = re.sub(r'\s+\.', '.', cleaned)
-    cleaned = re.sub(r'\.+', '.', cleaned)
-    cleaned = re.sub(r' +', ' ', cleaned)
-    
-    # Track metrics
+
+    cleaned = " ".join(rebuilt)
+    # Collapse whitespace artifacts
+    cleaned = " ".join(cleaned.split())
+
     OrchestratorMetrics.track_narration_removal(
         input_length=len(text),
         output_length=len(cleaned),
-        duration=0.0
+        duration=0.0,
     )
-    
     return cleaned
+
+
+def _is_narration(lower: str) -> bool:
+    """Return True if the lowercased sentence should be dropped.
+
+    Only matches sentence *starts* — never arbitrary substrings — so
+    normal conversational responses like "I'm seeing three emails" survive.
+    """
+    # Check FORBIDDEN_SENTENCE_STARTS (imported from config)
+    if any(lower.startswith(bad) for bad in FORBIDDEN_SENTENCE_STARTS):
+        return True
+    # Check narration patterns at sentence start only
+    return any(lower.startswith(sub) for sub in _NARRATION_SUBSTRINGS)
 
 
 @track_performance("classify_vision_error")
@@ -298,14 +275,9 @@ def validate_system_instruction_response(text: str) -> tuple[bool, list[str]]:
         if phrase in text_lower:
             violations.append(f"Uses deflection language: '{phrase}'")
     
-    # Check for narration/meta-commentary
-    # Bug fix: was re-compiling ANTI_NARRATION_PATTERNS on every call — this
-    # function runs on every Gemini response (hot path). Use the pre-compiled
-    # COMPILED_ANTI_NARRATION_PATTERNS that are already built at module load.
-    for compiled in COMPILED_ANTI_NARRATION_PATTERNS:
-        if compiled.search(text):
-            violations.append("Contains meta-commentary or narration")
-            break
+    # Check for narration/meta-commentary using the ReDoS-safe substring lookup
+    if _is_narration(text_lower):
+        violations.append("Contains meta-commentary or narration")
     
     return len(violations) == 0, violations
 

@@ -59,30 +59,24 @@ VISION_ERROR_TYPES: Final[dict[str, list[str]]] = {
 }
 
 # ━━━ FORBIDDEN SENTENCE STARTS ━━━
+# Only clearly internal-monologue patterns. Avoid short prefixes like "i'm now"
+# that would also match normal speech ("I'm now on the homepage").
 FORBIDDEN_SENTENCE_STARTS: Final[list[str]] = [
-    "currently, i", "right now, i", "to accomplish this, i",
-    "this initial step", "my next step", "i've decided to",
-    "i will now", "first, i will", "before i can help",
-    "i've begun", "i've initiated", "i've detailed", "i've pinpointed",
-    "i've completed", "i'm now", "i'm currently", "i'm focusing",
-    "my focus is", "my analysis", "my plan is", "my goal is",
-    "let me now", "let me begin", "let me start",
-    "i need to understand", "i need to figure out", "i need to determine",
-    "looking at the screen", "based on what i see",
-    "this will allow", "this step is", "this is essential",
-    # Additional patterns from recent violations
-    "i've identified", "i've noted", "i've registered", "i've examined",
-    "i'm zeroing", "i'm concentrating", "i'm noting",
-    "detailing the", "analyzing the", "examining the",
-    # New patterns from the screenshot
-    "i'm puzzled", "i'm viewing", "i'm still trying", "i plan to",
-    "i've now analyzed", "the user input", "appears incomplete",
-    "lacks context", "remains ambiguous",
-    # Inner-thought verbs seen leaking through
-    "i'm verifying", "i'm revisiting", "i'm re-examining", "i'm re-analyzing",
-    "i'm exploring", "i'm retrying", "i'm prepared to", "i'm re-",
-    "i'll target", "i'll retry", "i'll re-", "my next action",
-    "the previous attempt", "a fresh screen", "its coordinates are",
-    "i've re-analyzed", "i've re-examined", "i've re-identified",
-    "once i understand", "once i have",
+    "currently, i am analyzing", "right now, i am analyzing",
+    "to accomplish this, i will", "this initial step involves",
+    "my next step is to analyze", "i've decided to analyze",
+    "first, i will analyze", "before i can help, i need",
+    "i've begun analyzing", "i've initiated the",
+    "i've detailed the elements", "i've pinpointed the",
+    "i'm currently analyzing", "i'm currently examining",
+    "i'm focusing on the elements", "i'm concentrating on the",
+    "my focus is on analyzing", "my analysis of the screen",
+    "my plan is to analyze", "my goal is to determine",
+    "i need to understand the layout", "i need to figure out the",
+    "looking at the screen description", "based on what i see in the description",
+    "detailing the elements", "analyzing the screen description",
+    "examining the elements", "i'm zeroing in on",
+    "i've now analyzed the", "the user input appears",
+    "the previous attempt to", "a fresh screen description",
+    "its coordinates are", "once i understand the",
 ]

@@ -40,10 +40,8 @@ export function useOnboarding() {
       localStorage.setItem(SCREEN_SHARED_STORAGE_KEY, 'true');
       setHasSharedScreen(true);
       
-      // Also mark onboarding as complete when screen is shared
-      if (isFirstTime) {
-        markOnboardingComplete();
-      }
+      // Don't automatically mark onboarding as complete
+      // Let the onboarding component handle completion timing
     } catch (error) {
       console.error('[Onboarding] Failed to save screen share:', error);
     }
@@ -65,7 +63,7 @@ export function useOnboarding() {
     }
   };
 
-  const shouldShowOnboarding = isFirstTime && !hasSharedScreen && !onboardingDismissed;
+  const shouldShowOnboarding = isFirstTime && !onboardingDismissed;
 
   return {
     isFirstTime,

@@ -22,6 +22,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.overlay import router as overlay_router
 from app.plugins import load_plugins, registry
 from app.streaming.session import SpectraStreamingSession
+from app.sse_endpoint import sse_endpoint, receive_audio, receive_text
 
 load_dotenv()
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "WARNING"))
@@ -29,6 +30,7 @@ logger = logging.getLogger(__name__)
 
 # Optimized session tracking
 _active_sessions: dict[str, float] = {}
+_active_session_objects: dict[str, "SpectraStreamingSession"] = {}
 _total_sessions = 0
 _session_queue: asyncio.Queue = asyncio.Queue()
 _session_lock = asyncio.Lock()  # Thread safety for session tracking
@@ -158,6 +160,16 @@ async def websocket_endpoint(websocket: WebSocket):
         org_tier = ctx.get("tier", "free")
 
     async with _session_lock:
+        # Kill any existing session with the same ID to prevent duplicate
+        # Gemini connections, double audio, and wasted quota.
+        old_session = _active_session_objects.pop(session_id, None)
+        if old_session is not None:
+            logger.info("Killing duplicate session %s (new connection replacing old)", session_id)
+            try:
+                await old_session.cleanup()
+            except Exception:
+                pass
+
         _active_sessions[session_id] = time.time()
         _total_sessions += 1
 
@@ -166,6 +178,10 @@ async def websocket_endpoint(websocket: WebSocket):
     
     # Pass session_id to SpectraStreamingSession for persistent state
     session = SpectraStreamingSession(websocket, user_id=user_id, session_id=session_id)
+
+    async with _session_lock:
+        _active_session_objects[session_id] = session
+
     logger.debug("Spectra session: %s (user: %s)", session_id, user_id)
 
     if registry.on_session_start:
@@ -188,4 +204,51 @@ async def websocket_endpoint(websocket: WebSocket):
         await session.cleanup()
         async with _session_lock:
             _active_sessions.pop(session_id, None)
+            # Only remove if it's still *our* session (a newer one may have replaced us)
+            if _active_session_objects.get(session_id) is session:
+                _active_session_objects.pop(session_id, None)
         logger.debug("Session cleaned up: %s (duration: %.1fs)", session_id, duration)
+
+
+# ── SSE Endpoints for Vercel Compatibility ──────────────────────────────────
+# ⚠️ IMPORTANT: SSE has limitations for Gemini Live API
+# Gemini Live API REQUIRES WebSockets for real-time bidirectional audio streaming
+# SSE is unidirectional (server → client only) and cannot handle:
+# - Real-time audio streaming to Gemini
+# - Bidirectional communication  
+# - Low-latency voice interaction
+
+@app.get("/sse")
+async def sse_stream_endpoint(request: Request, session_id: str = None):
+    """Server-Sent Events endpoint for Vercel compatibility.
+    
+    ⚠️ LIMITATIONS:
+    - Unidirectional only (server → client)
+    - No real-time audio streaming to Gemini
+    - Requires separate HTTP endpoints for client→server communication
+    
+    Usage:
+    - Frontend connects to: GET /sse?session_id=abc123
+    - Frontend sends audio via: POST /sse/audio
+    - Frontend sends text via: POST /sse/text
+    """
+    return await sse_endpoint(request, session_id)
+
+
+@app.post("/sse/audio")
+async def sse_receive_audio(request: Request, session_id: str):
+    """Receive audio from client via HTTP POST (SSE workaround).
+    
+    This is a workaround for SSE's unidirectional limitation.
+    Client must send audio data via separate HTTP requests.
+    
+    ⚠️ Gemini Live API requires WebSockets for real-time audio streaming.
+    This endpoint cannot stream audio to Gemini Live API.
+    """
+    return await receive_audio(request, session_id)
+
+
+@app.post("/sse/text")
+async def sse_receive_text(request: Request, session_id: str):
+    """Receive text from client via HTTP POST (SSE workaround)."""
+    return await receive_text(request, session_id)
