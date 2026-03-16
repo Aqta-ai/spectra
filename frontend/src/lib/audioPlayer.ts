@@ -22,6 +22,8 @@ export class PcmAudioPlayer {
   private readonly INITIAL_BUFFER_S = 0.08;
   // How far behind schedule before we reset (avoids stale queue buildup)
   private readonly MAX_DRIFT_S = 0.5;
+  // Short fade-in on first chunk after silence (e.g. after pressing Q) to avoid rough attack
+  private readonly FIRST_CHUNK_FADE_S = 0.05;
   // Callback fired when all queued audio has finished playing
   private doneCallback: (() => void) | null = null;
 
@@ -103,7 +105,8 @@ export class PcmAudioPlayer {
 
     const now = ctx.currentTime;
 
-    if (!this.isPlaying || this.nextStartTime < now - this.MAX_DRIFT_S) {
+    const isFirstChunkAfterSilence = !this.isPlaying || this.nextStartTime < now - this.MAX_DRIFT_S;
+    if (isFirstChunkAfterSilence) {
       // First chunk or we've drifted too far , reset with a small buffer
       this.nextStartTime = now + this.INITIAL_BUFFER_S;
     }
@@ -111,6 +114,16 @@ export class PcmAudioPlayer {
     // If nextStartTime is slightly in the past but within drift tolerance,
     // just let it play immediately to catch up rather than resetting
     const startAt = Math.max(this.nextStartTime, now);
+
+    // Soft start: fade in the first chunk after Q/silence so it doesn't sound rough
+    if (isFirstChunkAfterSilence && this.gainNode && this.audioContext) {
+      try {
+        this.gainNode.gain.setValueAtTime(0, startAt);
+        this.gainNode.gain.linearRampToValueAtTime(1.0, startAt + this.FIRST_CHUNK_FADE_S);
+      } catch {
+        // ignore
+      }
+    }
 
     // Bug fix: source.start() can throw (e.g. AudioContext closed, invalid buffer).
     // Without this catch, pendingChunks stays > 0 forever → notifyWhenDone never

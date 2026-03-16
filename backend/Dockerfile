@@ -18,9 +18,9 @@ COPY . .
 RUN useradd -m -u 1000 spectra && chown -R spectra:spectra /app
 USER spectra
 
-# Health check
+# Health check (stdlib only — no extra deps)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD python -c "import requests; requests.get('http://localhost:8080/health')"
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')" || exit 1
 
 EXPOSE 8080
 

@@ -26,9 +26,9 @@ function isSpectraTab(tab) {
   return SPECTRA_ORIGINS.some((o) => tab.url.startsWith(o));
 }
 
+// No allowlist: any http/https page (e.g. wikipedia.org) is valid for clicks. Only browser-internal URLs are restricted.
 function isRestrictedUrl(url) {
   if (!url) return true;
-  // BULLETPROOF: Handle chrome://newtab and empty URLs
   if (url === "chrome://newtab/" || url === "about:blank" || url === "New Tab" || url.trim() === "") {
     return true;
   }

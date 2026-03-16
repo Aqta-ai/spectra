@@ -1,6 +1,6 @@
-graph LR
+graph TB
     %% User Layer
-    User[👤 User<br/>🎤 Voice + 🔊 Audio + ⌨️ Keyboard<br/>Wake: Hey Spectra · Q/W/Esc]
+    User[👤 User<br/>🎤 Voice + 🔊 Audio + ⌨️ Keyboard<br/>Wake: 'Hey Spectra' | Q/W/Esc]
 
     %% Frontend Layer
     subgraph Frontend["🌐 Frontend (Next.js + React)"]
@@ -23,12 +23,12 @@ graph LR
         WSServer[🔌 WebSocket Server<br/>Client ↔ Gemini Bridge]
         SessionMgr[📋 Session Manager<br/>SpectraStreamingSession]
         ToolRouter[🛠️ Tool Router<br/>Server vs Client tools]
-        Personalization[👤 User Preferences<br/>Workflows & History]
+        Memory[💾 Memory<br/>Session State & History]
     end
 
     %% Gemini Live API
-    subgraph GeminiAPI["🤖 Gemini Live API (Vertex AI)"]
-        LiveModel[gemini-2.0-flash-exp]
+    subgraph GeminiAPI["🤖 Gemini Live API"]
+        LiveModel[gemini-2.5-flash<br/>native audio]
         AudioStream[🎵 Real-time Audio<br/>Aoede Voice + VAD]
         VisionAnalysis[👁️ Vision Analysis<br/>Screenshot Understanding]
         FunctionCalls[⚙️ Function Calling<br/>UI Action Tools]
@@ -36,7 +36,7 @@ graph LR
 
     %% Tool Categories
     subgraph ServerTools["🖥️ Server-side Tools"]
-        DescribeScreen[describe_screen<br/>Analyze UI elements]
+        DescribeScreen[describe_screen<br/>Analyse UI elements]
         SaveSnapshot[save_snapshot<br/>Reference screenshots]
         DiffScreen[diff_screen<br/>Compare changes]
         TeachApp[teach_me_app<br/>Guided tours]
@@ -61,7 +61,7 @@ graph LR
     WSServer <-->|Streaming| SessionMgr
     SessionMgr <-->|bidiGenerateContent| LiveModel
     SessionMgr --> ToolRouter
-    SessionMgr --> Personalization
+    SessionMgr --> Memory
 
     ToolRouter -->|Server Tools| ServerTools
     ToolRouter -->|Client Tools| WSClient
@@ -85,7 +85,7 @@ graph LR
 
     class User userStyle
     class Frontend,VoiceAct,ScreenCap,ActionExec,WSClient,AudioPlayer frontendStyle
-    class Backend,WSServer,SessionMgr,ToolRouter,Personalization backendStyle
+    class Backend,WSServer,SessionMgr,ToolRouter,Memory backendStyle
     class GeminiAPI,LiveModel,AudioStream,VisionAnalysis,FunctionCalls geminiStyle
     class ServerTools,ClientTools,DescribeScreen,SaveSnapshot,DiffScreen,TeachApp,ClickElement,TypeText,ScrollPage,PressKey,Navigate toolStyle
     class Extension,ContentJS,BackgroundJS,ExtActions extensionStyle

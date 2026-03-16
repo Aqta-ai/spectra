@@ -92,25 +92,24 @@ async def health():
 
 @app.get("/vision-debug")
 async def vision_debug():
-    """Debug endpoint to check vision system status"""
+    """Debug endpoint — only available when ENABLE_VISION_DEBUG is set. Returns 404 in production."""
+    if os.getenv("ENABLE_VISION_DEBUG", "").lower() not in ("1", "true", "yes"):
+        from fastapi.responses import JSONResponse
+        return JSONResponse(status_code=404, content={"detail": "Not Found"})
     from app.streaming.session_manager import get_session_manager
-    
+
     session_manager = get_session_manager()
     session_stats = session_manager.get_session_stats()
-    
-    # Check if any sessions have recent frames
+
     recent_frames = 0
     stale_frames = 0
     current_time = time.time()
-    
     for session_id, start_time in _active_sessions.items():
-        # This is a simplified check - in a real implementation,
-        # we'd need access to the actual session objects
-        if current_time - start_time < 10:  # Active in last 10s
+        if current_time - start_time < 10:
             recent_frames += 1
         else:
             stale_frames += 1
-    
+
     return {
         "status": "vision_debug",
         "model": "gemini-2.5-flash-native-audio-preview-12-2025",
@@ -120,14 +119,14 @@ async def vision_debug():
         "frame_status": {
             "recent_frames": recent_frames,
             "stale_frames": stale_frames,
-            "total_sessions_with_stream": session_stats.get("sessions_with_stream", 0)
+            "total_sessions_with_stream": session_stats.get("sessions_with_stream", 0),
         },
         "potential_issues": [
             "Check if frontend is sending screenshot messages",
-            "Verify Gemini Live API is receiving video frames", 
+            "Verify Gemini Live API is receiving video frames",
             "Ensure model has multimodal capabilities enabled",
-            "Check for frame timing issues or stale data"
-        ]
+            "Check for frame timing issues or stale data",
+        ],
     }
 
 

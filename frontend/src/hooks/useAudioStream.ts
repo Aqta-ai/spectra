@@ -6,18 +6,48 @@ interface AudioStreamOptions {
   onAudioChunk: (base64Pcm: string) => void;
 }
 
-/** Inline AudioWorklet processor as a blob URL , avoids needing a separate file */
+/** Inline AudioWorklet processor — outputs 16kHz s16le PCM for Gemini Live API.
+ *  Browsers often ignore getUserMedia sampleRate; we resample if context !== 16kHz.
+ */
+const TARGET_RATE = 16000;
 const WORKLET_CODE = `
 class PcmProcessor extends AudioWorkletProcessor {
+  constructor() {
+    super();
+    this.inputRate = sampleRate;
+    this.ratio = this.inputRate / ${TARGET_RATE};
+    this.buffer = [];
+  }
   process(inputs) {
     const input = inputs[0];
     if (!input || !input[0]) return true;
     const float32 = input[0];
-    const int16 = new Int16Array(float32.length);
     for (let i = 0; i < float32.length; i++) {
       const s = Math.max(-1, Math.min(1, float32[i]));
-      int16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+      this.buffer.push(s < 0 ? s * 0x8000 : s * 0x7fff);
     }
+    if (this.ratio >= 0.99 && this.ratio <= 1.01) {
+      const int16 = new Int16Array(this.buffer.length);
+      for (let i = 0; i < this.buffer.length; i++) int16[i] = this.buffer[i];
+      this.buffer = [];
+      this.port.postMessage(int16.buffer, [int16.buffer]);
+      return true;
+    }
+    if (this.ratio < 1) return true;
+    const outLen = Math.floor(this.buffer.length / this.ratio);
+    if (outLen < 1) return true;
+    const consumed = Math.min(this.buffer.length, Math.floor(outLen * this.ratio));
+    const int16 = new Int16Array(outLen);
+    for (let i = 0; i < outLen; i++) {
+      const srcIdx = i * this.ratio;
+      const idx = Math.min(Math.floor(srcIdx), this.buffer.length - 1);
+      const frac = srcIdx - idx;
+      const a = this.buffer[idx] ?? 0;
+      const b = this.buffer[Math.min(idx + 1, this.buffer.length - 1)] ?? a;
+      int16[i] = Math.round(a + frac * (b - a));
+    }
+    this.buffer = this.buffer.slice(consumed);
+    if (this.buffer.length > ${TARGET_RATE} * 2) this.buffer = [];
     this.port.postMessage(int16.buffer, [int16.buffer]);
     return true;
   }

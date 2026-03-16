@@ -3,6 +3,7 @@
  * Tests WebSocket connection management, message handling, and error recovery
  */
 
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useSpectraSocket } from '@/hooks/useSpectraSocket';
 
@@ -51,7 +52,7 @@ global.WebSocket = MockWebSocket as any;
 
 describe('useSpectraSocket', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('Connection Management', () => {
@@ -254,7 +255,7 @@ describe('useSpectraSocket', () => {
   describe('Event Listeners', () => {
     it('should register event listeners', async () => {
       const { result } = renderHook(() => useSpectraSocket());
-      const listener = jest.fn();
+      const listener = vi.fn();
       
       act(() => {
         result.current.on('message', listener);
@@ -265,7 +266,7 @@ describe('useSpectraSocket', () => {
 
     it('should unregister event listeners', async () => {
       const { result } = renderHook(() => useSpectraSocket());
-      const listener = jest.fn();
+      const listener = vi.fn();
       
       act(() => {
         result.current.on('message', listener);
@@ -277,8 +278,8 @@ describe('useSpectraSocket', () => {
 
     it('should call listeners when events occur', async () => {
       const { result } = renderHook(() => useSpectraSocket());
-      const connectListener = jest.fn();
-      const messageListener = jest.fn();
+      const connectListener = vi.fn();
+      const messageListener = vi.fn();
       
       act(() => {
         result.current.on('connect', connectListener);
@@ -371,7 +372,7 @@ describe('useSpectraSocket', () => {
 
     it('should handle malformed messages', async () => {
       const { result } = renderHook(() => useSpectraSocket());
-      const errorListener = jest.fn();
+      const errorListener = vi.fn();
       
       act(() => {
         result.current.on('error', errorListener);
@@ -406,7 +407,7 @@ describe('useSpectraSocket', () => {
 
     it('should remove all listeners on unmount', async () => {
       const { result, unmount } = renderHook(() => useSpectraSocket());
-      const listener = jest.fn();
+      const listener = vi.fn();
       
       act(() => {
         result.current.on('message', listener);

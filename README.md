@@ -1,6 +1,8 @@
-
-
 # Spectra
+
+<p align="center">
+  <img src="spectra-banner.png" alt="Spectra — your screen, your voice, your way" width="100%" />
+</p>
 
 > I got tired of reading. Tired of staring at screens. Tired of typing.
 > So I built something that does it for me.
@@ -9,11 +11,13 @@ Spectra is a real-time AI agent that understands your screen, highlights what ma
 
 **Built for accessibility. Designed for everyone.**
 
-[Live App](https://spectra.aqta.ai)
-[Built With](https://ai.google.dev/gemini-api/docs/live)
-[Google Cloud](https://cloud.google.com/run)
-[Python](https://fastapi.tiangolo.com)
-[Next.js](https://nextjs.org)
+[![Live App](https://img.shields.io/badge/LIVE_APP-spectra.aqta.ai-22c55e?style=for-the-badge)](https://spectra.aqta.ai)
+[![Demo Video](https://img.shields.io/badge/DEMO_VIDEO-YouTube-ff0000?style=for-the-badge&logo=youtube&logoColor=white)](https://www.youtube.com/watch?v=MJQX4xapRA0)
+[![Built With](https://img.shields.io/badge/BUILT_WITH-Gemini_Live_API-4285F4?style=for-the-badge&logo=google&logoColor=white)](https://ai.google.dev/gemini-api/docs/live)
+[![Google Cloud](https://img.shields.io/badge/GOOGLE_CLOUD-Cloud_Run-4285F4?style=for-the-badge&logo=googlecloud&logoColor=white)](https://cloud.google.com/run)
+[![Python](https://img.shields.io/badge/PYTHON-FastAPI-3B82F6?style=for-the-badge&logo=python&logoColor=white)](https://fastapi.tiangolo.com)
+[![Next.js](https://img.shields.io/badge/NEXT.JS-14-111827?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org)
+
 
 ---
 
@@ -21,7 +25,7 @@ Whether you're visually impaired, have RSI, multitasking, or just want hands-fre
 
 **Your screen, your voice, your way.**
 
-**[Live Demo](https://spectra.aqta.ai)** | **[Blog Post](BLOG.md)** | **[Quick Start](#-quick-start)** | **[Architecture](#-architecture)** | **[Accessibility](ACCESSIBILITY.md)** | **[Troubleshooting](docs/TROUBLESHOOTING.md)**
+**[Quick Start](#-quick-start)** | **[Architecture](#-architecture)** | **[Accessibility](ACCESSIBILITY.md)** | **[Blind User Test Script](docs/BLIND_USER_MANUAL_TEST_SCRIPT.md)** | **[Troubleshooting](#-troubleshooting)**
 
 ---
 
@@ -33,20 +37,19 @@ Gemini Live API eliminates that boundary entirely. `bidiGenerateContent` is a pe
 
 Three Gemini capabilities make this possible and aren't replicated anywhere else:
 
-- 🎙️ **Native audio I/O**, no TTS/STT middleware; Gemini speaks directly with natural prosody and handles interruptions natively via Voice Activity Detection
-- 🖼️ **Multimodal Live streaming**, screenshots and audio arrive in the same stream Gemini is already reasoning over; no separate vision API call, no round-trip
-- 💭 **Thinking with suppressed chain-of-thought**, `gemini-2.5-flash` reasons internally via its thinking budget but we suppress emission of those thoughts, so the model navigates complex multi-step tasks intelligently without leaking internal monologue to the audio stream
+- **Native audio I/O** — no TTS/STT middleware; Gemini speaks directly with natural prosody and handles interruptions natively via Voice Activity Detection
+- **Multimodal Live streaming** — screenshots and audio arrive in the same stream Gemini is already reasoning over; no separate vision API call, no round-trip
+- **Thinking with suppressed chain-of-thought** — `gemini-2.5-flash` reasons internally via its thinking budget but we suppress emission of those thoughts, so the model navigates complex multi-step tasks intelligently without leaking internal monologue to the audio stream
 
 No other model family currently exposes all three in a single real-time API. That is why Spectra is built on Gemini.
 
 ---
 
-## 🌍 The Problem
+## The Problem
 
 2.2 billion people worldwide have a vision impairment. But even people with perfect vision are exhausted by screens.
 
 ### The Accessibility Gap
-
 
 | Statistic                                       | Source           |
 | ----------------------------------------------- | ---------------- |
@@ -56,13 +59,12 @@ No other model family currently exposes all three in a single real-time API. Tha
 | Average page has 50+ accessibility errors       | WebAIM, 2024     |
 | Screen reader users spend 2x-3x longer on tasks | Research studies |
 
-
 We read for hours. We stare until our eyes burn. We type until our wrists ache. And traditional screen readers? They were built decades ago for a simpler web:
 
-- 🔒 **Rigid**, linear DOM reading; no understanding of layout, colours, or images
-- 💔 **Fragile**, break on custom components and dynamic UIs
-- 🤷 **Passive**, they describe but never act; you still click everything yourself
-- 📝 **Text-only**, they can't interpret visuals, charts, or screenshots
+- **Rigid** — linear DOM reading; no understanding of layout, colours, or images
+- **Fragile** — break on custom components and dynamic UIs
+- **Passive** — they describe but never act; you still click everything yourself
+- **Text-only** — they can't interpret visuals, charts, or screenshots
 
 **The gap:** No tool lets you just talk to your screen and have AI both understand and act on what it sees.
 
@@ -72,15 +74,15 @@ We read for hours. We stare until our eyes burn. We type until our wrists ache. 
 
 Spectra is a real-time AI agent that closes the loop between seeing and doing:
 
-- 👁️ **Sees**, continuously captures your screen via live stream
-- 🧠 **Understands**, Gemini vision interprets layout, text, images, buttons, colours
-- 👂 **Listens**, you speak naturally: "Where am I?", "Read this article", "Click the blue button"
-- ⚡ **Acts**, executes real UI actions (click, scroll, type, press keys) in your browser
-- 🗣️ **Speaks**, responds with natural Gemini audio in 30+ languages, interruptible at any time
+- **Sees** — continuously captures your screen via live stream
+- **Understands** — Gemini vision interprets layout, text, images, buttons, colours
+- **Listens** — you speak naturally: "Where am I?", "Read this article", "Click the blue button"
+- **Acts** — executes real UI actions (click, scroll, type, press keys) in your browser
+- **Speaks** — responds with natural Gemini audio in 30+ languages, interruptible at any time
 
 No reading. No staring. No typing. Just talk.
 
-### 💬 Example Interaction
+### Example Interaction
 
 A blind user wants to catch up on the news, entirely by voice:
 
@@ -112,26 +114,24 @@ No mouse. No keyboard. No reading. A task that takes a sighted person 30 seconds
 
 ---
 
-## 🔑 Key Features
-
+## Key Features
 
 | Feature                         | Description                                                          |
 | ------------------------------- | -------------------------------------------------------------------- |
-| 🎤 **Voice-first control**      | Speak naturally, Spectra understands intent, not just commands       |
-| 🖥️ **Real-time screen vision** | Continuous 2 FPS screen capture with Gemini multimodal understanding |
-| 🖱️ **Browser actions**         | Click, type, scroll, navigate, press keys, all hands-free            |
-| 📢 **Wake word activation**     | Say "Hey Spectra" to start, no button press needed                   |
-| ✋ **Barge-in support**          | Interrupt Spectra mid-sentence, she stops immediately                |
-| 📖 **Smart page reading**       | Reads headlines, articles, and content aloud with natural pacing     |
-| 🌐 **30+ languages**            | Gemini native audio supports multilingual conversations              |
-| ⌨️ **Keyboard shortcuts**       | Q (start/stop), W (share screen), Escape (stop)                      |
-| 🔒 **Zero data stored**         | Screenshots in RAM only, nothing saved to disk                       |
-| ♿ **Accessibility-first**       | Skip links, ARIA labels, screen reader compatible UI                 |
-
+| **Voice-first control**        | Speak naturally, Spectra understands intent, not just commands       |
+| **Real-time screen vision**    | Continuous 2 FPS screen capture with Gemini multimodal understanding |
+| **Browser actions**            | Click, type, scroll, navigate, press keys, all hands-free              |
+| **Wake word activation**       | Say "Hey Spectra" to start, no button press needed                    |
+| **Barge-in support**           | Interrupt Spectra mid-sentence, she stops immediately                  |
+| **Smart page reading**         | Reads headlines, articles, and content aloud with natural pacing      |
+| **30+ languages**             | Gemini native audio supports multilingual conversations               |
+| **Zero data stored**          | Screenshots in RAM only, nothing saved to disk                       |
+| **Accessibility-first**       | Skip links, ARIA labels, screen reader compatible UI                  |
+| **Overlay view**              | The page as Spectra sees it, structure, priorities, a11y hints. [spectra.aqta.ai/overlay](https://spectra.aqta.ai/overlay) or localhost:3000/overlay |
 
 ---
 
-## ⚙️ Technical Highlights
+## Technical Highlights
 
 
 | Requirement                             | Status | Location                                                       |
@@ -143,12 +143,12 @@ No mouse. No keyboard. No reading. A task that takes a sighted person 30 seconds
 | Native audio streaming (Aoede voice)    | ✅      | Gemini Live API native audio I/O                               |
 | Architecture diagram                    | ✅      | [Below](#-architecture) · `[ARCHITECTURE.md](ARCHITECTURE.md)` |
 | **Bonus:** Infrastructure-as-Code       | ✅      | `infra/main.tf` (Terraform) · `deploy.sh`                      |
-| **Bonus:** Test suite (19 test files)   | ✅      | `backend/tests/` (pytest)                                      |
+| **Bonus:** Test suite (20 test files)   | ✅      | `backend/tests/` (pytest)                                      |
 
 
 ---
 
-## 📊 Performance
+## Performance
 
 
 | Metric                    | Value                                   |
@@ -159,20 +159,24 @@ No mouse. No keyboard. No reading. A task that takes a sighted person 30 seconds
 | Languages supported       | 30+ (Gemini native audio)               |
 | Data stored on disk       | Zero, screenshots in RAM only           |
 | Source lines of code      | ~8,500 (core application)               |
-| Backend test files        | 19 (pytest)                             |
+| Backend test files        | 20 (pytest)                             |
 | Docker image size         | ~150MB                                  |
 
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 Spectra is split into a **Next.js frontend**, a **FastAPI backend** connected to [Gemini Live API](https://ai.google.dev/gemini-api/docs/live), and a **Chrome extension** (Spectra Bridge) for browser actions.
+
+<p align="center">
+  <img src="spectra-architecture.png" alt="Spectra system architecture" width="100%" />
+</p>
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                        USER                                     │
-│    🎤 Voice In   🔊 Voice Out   ⌨️ Keyboard                     │
+│    Voice In   Voice Out   Keyboard                             │
 │   Wake word: "Hey Spectra" | Shortcuts: Q / W / Escape          │
 └──────────────┬──────────────────────────┬───────────────────────┘
                │                          │
@@ -212,7 +216,7 @@ Spectra is split into a **Next.js frontend**, a **FastAPI backend** connected to
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-**🛠️ Agent tools:**
+**Agent tools:**
 
 
 | Tool                  | Purpose                                             |
@@ -232,7 +236,7 @@ See `[ARCHITECTURE.md](ARCHITECTURE.md)` for deeper details.
 
 ---
 
-## 🧩 Tech Stack
+## Tech Stack
 
 
 | Layer           | Technology                                                                            | Why                                                           |
@@ -250,7 +254,7 @@ See `[ARCHITECTURE.md](ARCHITECTURE.md)` for deeper details.
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 spectra/
@@ -266,7 +270,7 @@ spectra/
 │   │   │   ├── fast_pipeline.py # Fast response pipeline
 │   │   │   └── session_manager.py  # Session state persistence
 │   │   └── performance_monitor.py  # Latency tracking + alerts
-│   ├── tests/                  # 19 test files (pytest)
+│   ├── tests/                  # 20 test files (pytest)
 │   ├── requirements.txt
 │   └── Dockerfile
 ├── frontend/
@@ -306,25 +310,64 @@ spectra/
 
 ---
 
-## 🚀 Quick Start
+## Production readiness checklist
+
+Before going live (e.g. at spectra.aqta.ai), confirm:
+
+| Check | What to do |
+| ----- | ---------- |
+| **Secrets** | No API keys in frontend or repo. Backend uses `GOOGLE_API_KEY` or Vertex ADC from env only. `.env` and `.env.local` are gitignored. |
+| **CORS** | Backend `ALLOWED_ORIGINS` includes your frontend origin (e.g. `https://spectra.aqta.ai`). See `backend/.env.example`. |
+| **WebSocket URL** | Frontend `NEXT_PUBLIC_WS_URL` is set to your backend WebSocket URL (e.g. `wss://your-backend.run.app/ws`) in the deployment environment. |
+| **Health** | Backend exposes `/health`; Cloud Run / load balancer uses it. Dockerfile includes `HEALTHCHECK`. |
+| **Docs off in prod** | FastAPI `docs_url=None`, `redoc_url=None` so `/docs` is not exposed. |
+| **Extension** | Spectra Bridge extension v2.0.0; install from Chrome Web Store or load unpacked from `extension/`. Users need it for click/type/navigate. |
+| **Action queue fix** | Backend matches action results by `id` (no cross-talk after timeouts). Session tests pass. |
+| **Cookie / consent** | Spectra is instructed to click “Yes, I agree” (or Accept) on cookie banners, not “Settings” or “No”, to avoid loops. |
+
+---
+
+## Quick Start
+
+### Requirements
+
+- **Chrome** (or Chromium-based browser) — required for screen capture and extension
+- **Microphone** — required for voice input
+- **Google Cloud credentials** — Vertex AI project or Gemini API key
+- **Node.js 20+** and **Python 3.11+** (for local development without Docker)
+
+### Try the Live App (fastest)
+
+1. Open **[spectra.aqta.ai](https://spectra.aqta.ai)** in Chrome
+2. Install the **Spectra Bridge** extension (see [Extension Setup](#spectra-bridge-chrome-extension) below)
+3. Press **Q** to start Spectra
+4. Press **W** to share your screen (select any tab or entire screen)
+5. Say **"What's on my screen?"** — Spectra will describe what it sees
+6. Try commands like **"Go to BBC News"**, **"Read me the top headline"**, **"Click it"**
+7. Press **Escape** to stop
+
+### Run Locally with Docker
 
 ```bash
 git clone https://github.com/AqtaAI/spectra.git
 cd spectra
 
-# Authenticate with Google Cloud (Vertex AI)
+# Configure credentials (pick one):
+cp backend/.env.example backend/.env
+
+# Option A — Vertex AI (recommended):
+# Set GOOGLE_CLOUD_PROJECT=your-gcp-project-id in backend/.env
 gcloud auth application-default login
 
-# Configure your project
-cp backend/.env.example backend/.env
-# Set GOOGLE_CLOUD_PROJECT=your-gcp-project-id in backend/.env
+# Option B — Google AI Studio API key:
+# Set GOOGLE_API_KEY=your-key in backend/.env
 
 docker-compose up
 ```
 
-Open **[http://localhost:3000](http://localhost:3000)** → install the [Chrome extension](#-spectra-bridge--chrome-extension) from `extension/` → press **Q** and start talking.
+Open **[http://localhost:3000](http://localhost:3000)** → install the [Chrome extension](#spectra-bridge-chrome-extension) → press **Q** and start talking.
 
-### 🔧 Local Development (without Docker)
+### Local Development (without Docker)
 
 ```bash
 # Backend
@@ -337,60 +380,24 @@ uvicorn app.main:app --reload --port 8080
 cd frontend
 npm install
 npm run dev
-
-# Extension
-# Go to chrome://extensions → Enable Developer Mode → Load Unpacked → select extension/
 ```
+
+Install the Chrome extension (see [Extension Setup](#spectra-bridge-chrome-extension) below).
 
 ---
 
-## 🧪 Reproducible Testing
+## Testing & Verification
 
-### Option 1: Try the Live App (fastest)
+### Run the Test Suite
 
-1. Open **[spectra.aqta.ai](https://spectra.aqta.ai)** in Chrome
-2. Install the **Spectra Bridge** extension:
-  - Download/clone the `extension/` folder from this repo
-  - Go to `chrome://extensions` → enable **Developer mode** → click **Load unpacked** → select the `extension/` folder
-3. Press **Q** to start Spectra
-4. Press **W** to share your screen (select any tab or entire screen)
-5. Say **"What's on my screen?"** — Spectra will describe what it sees
-6. Say **"Go to BBC News"** — Spectra navigates to BBC News
-7. Say **"Read me the top headline"** — Spectra reads the headline aloud
-8. Say **"Click it"** — Spectra opens the article
-9. Press **Escape** to stop
-
-### Option 2: Run Locally with Docker
-
-```bash
-git clone https://github.com/AqtaAI/spectra.git
-cd spectra
-
-# Configure credentials (pick one):
-cp backend/.env.example backend/.env
-
-# Option A — Vertex AI (recommended):
-# Set GOOGLE_CLOUD_PROJECT=your-gcp-project-id in backend/.env
-# Run: gcloud auth application-default login
-
-# Option B — Google AI Studio API key:
-# Set GOOGLE_API_KEY=your-key in backend/.env
-
-docker-compose up
-```
-
-Open `http://localhost:3000` → install the Chrome extension (see above) → press **Q** and start talking.
-
-### Option 3: Run the Test Suite
-
-Spectra has **19 test files** covering core logic, accessibility compliance, and conversation scenarios:
+Spectra has **20 test files** covering core logic, accessibility compliance, and conversation scenarios:
 
 ```bash
 cd backend
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
-# Run all tests
+# Run all tests (must be run from backend/ so `app` is importable)
 pytest tests/ -v
 
 # Run specific test categories
@@ -402,8 +409,22 @@ pytest tests/test_conversation_scenarios.py -v     # End-to-end conversation flo
 pytest tests/test_connection_recovery.py -v        # Error handling & recovery
 ```
 
-### What to Test
+### Verify Build (no credentials needed)
 
+From the repo root, confirm backend tests and frontend build work:
+
+```bash
+# Backend tests (some tests are skipped without GCP)
+cd backend && pip install -r requirements.txt && pytest tests/ -q && cd ..
+
+# Frontend build (uses default ws://localhost:8080/ws)
+cd frontend && npm ci && npm run build && cd ..
+
+# Docker build
+docker compose build
+```
+
+### Manual Testing Scenarios
 
 | Scenario             | Voice Command                          | Expected Result                                      |
 | -------------------- | -------------------------------------- | ---------------------------------------------------- |
@@ -416,17 +437,13 @@ pytest tests/test_connection_recovery.py -v        # Error handling & recovery
 | Interrupt (barge-in) | Say anything while Spectra is speaking | Spectra stops immediately and listens                |
 | Keyboard shortcut    | Press **Q**                            | Toggles Spectra on/off                               |
 
-
-### Requirements
-
-- **Chrome** (or Chromium-based browser) — required for screen capture and extension
-- **Microphone** — required for voice input
-- **Google Cloud credentials** — Vertex AI project or Gemini API key
-- **Node.js 20+** and **Python 3.12+** (for local development without Docker)
-
 ---
 
-## ☁️ Cloud Deployment
+## Cloud Deployment
+
+<p align="center">
+  <img src="spectra-gcp-architecture.png" alt="Spectra Google Cloud architecture (europe-west1)" width="100%" />
+</p>
 
 One command deploys backend + frontend to Cloud Run with Vertex AI:
 
@@ -452,19 +469,27 @@ terraform init && terraform apply
 
 ---
 
-## 🎯 Usage
+## Usage
 
 Visit [http://localhost:3000](http://localhost:3000) (or your Cloud Run URL).
 
 ### Getting Started
 
-1. **Press Q** or say **"Hey Spectra"** to start
-2. **Press W** to share your screen (required for Spectra to see)
-3. **Talk naturally**, "What's on my screen?", "Click the search bar", "Go to BBC News"
-4. **Say "Stop"** or press **Escape** to halt
+1. **Open the page you want to interact with** in a separate tab (e.g. bbc.com, google.com). Spectra executes actions in your most recently used non-Spectra tab.
+2. **Press Q** or say **"Hey Spectra"** to start
+3. **Press W** to share your screen — select the tab with the page you want to control
+4. **Talk naturally** using the commands below
+5. **Say "Stop"** or press **Escape** to halt
 
-### 🗣️ Voice Commands
+### Keyboard Shortcuts
 
+| Key        | Action               |
+| ---------- | -------------------- |
+| **Q**      | Start / stop Spectra |
+| **W**      | Share screen         |
+| **Escape** | Stop Spectra         |
+
+### Voice Commands
 
 | Command               | What it does                          |
 | --------------------- | ------------------------------------- |
@@ -478,20 +503,9 @@ Visit [http://localhost:3000](http://localhost:3000) (or your Cloud Run URL).
 | "Read this page"      | Reads content aloud                   |
 | "Stop" / "Cancel"     | Cancels current action                |
 
+### Wake Words (hands-free activation)
 
-### ⌨️ Keyboard Shortcuts
-
-
-| Key        | Action               |
-| ---------- | -------------------- |
-| **Q**      | Start / stop Spectra |
-| **W**      | Share screen         |
-| **Escape** | Stop Spectra         |
-
-
-### 📢 Wake Words
-
-Say any of these to activate Spectra hands-free (after initial Q press):
+Say any of these to activate Spectra without pressing Q:
 
 - **"Hey Spectra"**
 - **"Start Spectra"**
@@ -500,24 +514,23 @@ Say any of these to activate Spectra hands-free (after initial Q press):
 
 ---
 
-## 🧩 Spectra Bridge, Chrome Extension
+## Spectra Bridge (Chrome Extension)
 
-Spectra requires **Spectra Bridge**, a Chrome extension that executes browser actions (click, type, scroll, navigate) on any webpage on your behalf. Without this extension, Spectra can describe your screen but cannot perform actions.
+Spectra requires **Spectra Bridge**, a Chrome extension that executes browser actions (click, type, scroll, navigate) on any webpage. Without this extension, Spectra can describe your screen but cannot perform actions.
 
-### 📦 Install
+### Install
 
 1. Open Chrome and go to `chrome://extensions/`
 2. Enable **Developer mode** (toggle, top right)
 3. Click **Load unpacked**
 4. Select the `extension/` folder from this repo
 
-### ⚙️ How It Works
+### How It Works
 
-- `**content.js`**, injected into every tab; listens for action messages and executes them (click, type, scroll, key press, navigate). Shows a purple highlight overlay on clicked elements.
-- `**background.js**`, service worker that routes messages from the Spectra frontend to the active tab. Handles tab verification and race conditions.
+- **content.js** — injected into every tab; listens for action messages and executes them (click, type, scroll, key press, navigate). Shows a purple highlight overlay on clicked elements.
+- **background.js** — service worker that routes messages from the Spectra frontend to the active tab. Handles tab verification and race conditions.
 
-### 🔧 Actions
-
+### Actions
 
 | Action              | What it does                                                                |
 | ------------------- | --------------------------------------------------------------------------- |
@@ -529,8 +542,7 @@ Spectra requires **Spectra Bridge**, a Chrome extension that executes browser ac
 | `highlight_element` | Shows visual highlight without clicking                                     |
 | `read_selection`    | Reads selected text, paragraph, or full page                                |
 
-
-### 🔐 Permissions & Trust
+### Permissions & Trust
 
 The extension requires `<all_urls>` permission to execute actions on any website. The extension:
 
@@ -540,38 +552,38 @@ The extension requires `<all_urls>` permission to execute actions on any website
 
 ---
 
-## 🛡️ Safety, Ethics & Privacy
+## Safety, Ethics & Privacy
 
 See our full [Privacy Policy](PRIVACY.md) for details.
 
 ### What We Control
 
-- 🔒 **No data storage**, screenshots are held as a single variable in memory; each new frame replaces the last. No files, no database, no cloud storage.
+- **No data storage** — screenshots are held as a single variable in memory; each new frame replaces the last. No files, no database, no cloud storage.
 - 🚫 **No accounts, no tracking, no analytics**, self-hosters bring their own API key.
-- 🎛️ **User always in control**, "Stop" or "Cancel" at any time.
-- 📖 **Open source**, Apache 2.0 for transparency and community audit.
+- **User always in control** — "Stop" or "Cancel" at any time.
+- **Open source** — Apache 2.0 for transparency and community audit.
 
 ### What Leaves Your Machine
 
-- 📡 **Screen frames and audio are sent to Google's Gemini API** for vision analysis and voice processing. This is required for Spectra to function.
-- 📜 **Google's data handling:** Data sent via the Gemini API is subject to [Google's privacy policies](https://policies.google.com/privacy) and [Gemini API terms](https://ai.google.dev/gemini-api/terms).
-- 🚫 **No other third-party services** access your data.
+- **Screen frames and audio are sent to Google's Gemini API** for vision analysis and voice processing. This is required for Spectra to function.
+- **Google's data handling:** Data sent via the Gemini API is subject to [Google's privacy policies](https://policies.google.com/privacy) and [Gemini API terms](https://ai.google.dev/gemini-api/terms).
+- **No other third-party services** access your data.
 
 ---
 
 ## Fun Facts
 
-- 🖱️ **Zero mouse clicks required**, 100% voice + keyboard controllable
-- 📸 **1 screenshot = ~80KB**, JPEG frames, not video, saving 95% bandwidth
-- ✋ **Barge-in works**, interrupt Spectra mid-sentence and she stops immediately
-- 🏠 **Wake word runs locally**, "Hey Spectra" detection never leaves your browser
-- 🎵 **Aoede voice**, named after the Greek muse of song
-- 🐛 **Hardest bug**, WebSocket race conditions; 3 days to fix with single-reader pattern
-- 🌈 **Why "Spectra"?**, sees the full spectrum of your screen: colours, layout, text, images
+- **Zero mouse clicks required** — 100% voice + keyboard controllable
+- **1 screenshot = ~80KB** — JPEG frames, not video, saving 95% bandwidth
+- **Barge-in works** — interrupt Spectra mid-sentence and she stops immediately
+- **Wake word runs locally** — "Hey Spectra" detection never leaves your browser
+- **Aoede voice** — named after the Greek muse of song
+- **Hardest bug** — WebSocket race conditions; 3 days to fix with single-reader pattern
+- **Why "Spectra"?** — sees the full spectrum of your screen: colours, layout, text, images
 
 ---
 
-## 🔧 Troubleshooting
+## Troubleshooting
 
 
 | Issue                  | Fix                                                                                                  |
@@ -582,29 +594,30 @@ See our full [Privacy Policy](PRIVACY.md) for details.
 | Screen sharing denied  | Spectra works in text-only mode without screen sharing                                               |
 | Extension not detected | Reload extension at `chrome://extensions/`, ensure on [http://localhost:3000](http://localhost:3000) |
 | No audio output        | Check browser autoplay policy, click the page once to enable audio                                   |
+| Click/type not working | **Open the target page in a separate tab** — Spectra must have the page you want to interact with open in another tab. The extension routes actions to the most recently accessed non-Spectra tab. Refresh the target tab if needed. |
+| Overlay "Failed to fetch" | Ensure backend is running and `ALLOWED_ORIGINS` includes the frontend URL. Overlay requires `GOOGLE_API_KEY` or `GOOGLE_CLOUD_PROJECT` in backend env. |
 
-
-See [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) for the full list.
+See the table above for common fixes.
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 Spectra is open source and built for the accessibility community.
 
 **Ways to contribute:**
 
-- 🐛 Report bugs and suggest features
-- 📝 Improve docs and accessibility
-- ⚡ Add new capabilities (e.g., app-specific workflows)
-- 🧪 Test with screen readers and real users
-- 🌍 Translate to other languages
+- Report bugs and suggest features
+- Improve docs and accessibility
+- Add new capabilities (e.g., app-specific workflows)
+- Test with screen readers and real users
+- Translate to other languages
 
 See `[CONTRIBUTING.md](CONTRIBUTING.md)` for details.
 
 ---
 
-## ⚠️ Disclaimer
+## Disclaimer
 
 **Spectra is an experimental research project and proof-of-concept.**
 
@@ -616,13 +629,13 @@ If you rely on assistive technology for daily tasks, please continue using your 
 
 ---
 
-## 📄 Licence
+## Licence
 
 Apache License 2.0, see [LICENSE](LICENSE).
 
 ---
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - **[Google Gemini](https://ai.google.dev/gemini-api)**, the 2.5 Flash model with native audio and vision capabilities powers Spectra's real-time understanding
 - **[Gemini Live API](https://ai.google.dev/gemini-api/docs/live)**, bidirectional streaming enables natural voice conversation
@@ -633,7 +646,7 @@ Built for **#GeminiLiveAgentChallenge**
 
 ---
 
-## 👩‍💻 Maintainer
+## Maintainer
 
 **Anya Chueayen**, Aqta Technologies Ltd, Dublin, Ireland
 

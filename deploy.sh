@@ -126,12 +126,13 @@ FRONTEND_URL=$(gcloud run services describe spectra-frontend \
 
 echo "   Frontend: $FRONTEND_URL"
 
-# ── Patch backend CORS to real frontend URL ───────────────────────────────────
-echo "🔧 Patching backend CORS → $FRONTEND_URL..."
+# ── Patch backend CORS to frontend URL + custom domain ─────────────────────────
+CORS_ORIGINS="${FRONTEND_URL},https://spectra.aqta.ai"
+echo "🔧 Patching backend CORS → $CORS_ORIGINS"
 gcloud run services update spectra-backend \
   --region "$REGION" \
   --project "$PROJECT_ID" \
-  --update-env-vars "ALLOWED_ORIGINS=${FRONTEND_URL}"
+  --update-env-vars "ALLOWED_ORIGINS=${CORS_ORIGINS}"
 
 echo ""
 echo "✅ Spectra deployed!"

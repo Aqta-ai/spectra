@@ -24,14 +24,26 @@ export function useScreenCapture({ onFrame, fps = 2 }: ScreenCaptureOptions) {
 
   useEffect(() => { onFrameRef.current = onFrame; }, [onFrame]);
 
-  /** Optimised hash function for frame comparison */
-  const quickHash = useCallback((data: Uint8ClampedArray): string => {
-    let hash = 0;
-    // Sample every 100th pixel for speed
-    for (let i = 0; i < data.length; i += 400) {
-      hash = ((hash << 5) - hash + data[i]) | 0;
+  /** Hash from a region of image data — samples top, center, bottom so scrolling is detected */
+  const regionHash = useCallback((
+    ctx: CanvasRenderingContext2D,
+    canvasWidth: number,
+    canvasHeight: number
+  ): string => {
+    const sampleSize = 80;
+    const regions = [
+      { x: canvasWidth / 2 - sampleSize / 2, y: 0, w: sampleSize, h: sampleSize }, // top
+      { x: canvasWidth / 2 - sampleSize / 2, y: canvasHeight / 2 - sampleSize / 2, w: sampleSize, h: sampleSize }, // center
+      { x: canvasWidth / 2 - sampleSize / 2, y: canvasHeight - sampleSize, w: sampleSize, h: sampleSize }, // bottom
+    ];
+    let h = 0;
+    for (const r of regions) {
+      const id = ctx.getImageData(Math.max(0, r.x), Math.max(0, r.y), r.w, r.h);
+      for (let i = 0; i < id.data.length; i += 200) {
+        h = ((h << 5) - h + id.data[i]) | 0;
+      }
     }
-    return hash.toString(36);
+    return h.toString(36);
   }, []);
 
   /** Adaptive quality based on resolution and frame rate */
@@ -123,21 +135,14 @@ export function useScreenCapture({ onFrame, fps = 2 }: ScreenCaptureOptions) {
           ctx.drawImage(video, 0, 0);
 
           try {
-            // Always send every 4th frame (every 2s at 2fps) regardless of content
-            // so Gemini never has context older than 2s on a static screen.
+            // Force send every 2nd frame (~0.67s at 3fps) so Spectra's view updates at least once per second.
+            // Gemini Live API accepts max 1 FPS, so we ensure fresh context without over-sending.
             frameCountRef.current++;
-            const shouldSkipComparison = frameCountRef.current % 4 === 0;
+            const forceSend = frameCountRef.current % 2 === 0;
 
-            if (!shouldSkipComparison) {
-              // Efficient frame change detection - sample centre region only
-              const sampleWidth = Math.min(canvas.width / 4, 200);
-              const sampleHeight = Math.min(canvas.height / 4, 150);
-              const startX = (canvas.width - sampleWidth) / 2;
-              const startY = (canvas.height - sampleHeight) / 2;
-              
-              const imageData = ctx.getImageData(startX, startY, sampleWidth, sampleHeight);
-              const frameHash = quickHash(imageData.data);
-
+            if (!forceSend) {
+              // Multi-region hash (top, center, bottom) — detects scrolling and partial changes
+              const frameHash = regionHash(ctx, canvas.width, canvas.height);
               if (frameHash === lastFrameHashRef.current) {
                 return; // Skip identical frame
               }

@@ -203,7 +203,7 @@ export default function PrivacyPage() {
             <li>
               Is{" "}
               <a
-                href="https://github.com/Aqta-ai/spectra/tree/main/extension"
+                href="https://github.com/AqtaAI/spectra/tree/main/extension"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-spectra-secondary hover:underline"
@@ -305,7 +305,7 @@ export default function PrivacyPage() {
           </Link>
           {" · "}
           <a
-            href="https://github.com/Aqta-ai/spectra"
+            href="https://github.com/AqtaAI/spectra"
             target="_blank"
             rel="noopener noreferrer"
             className="hover:text-white/50 transition-colors"
