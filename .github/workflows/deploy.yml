@@ -63,13 +63,13 @@ jobs:
         with:
           project_id: ${{ env.PROJECT_ID }}
 
-      - name: Configure Docker for GCR
-        run: gcloud auth configure-docker gcr.io --quiet
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker us-docker.pkg.dev --quiet
 
       - name: Build & push backend image
         working-directory: backend
         run: |
-          IMAGE="gcr.io/${{ env.PROJECT_ID }}/spectra-backend:${{ github.sha }}"
+          IMAGE="us-docker.pkg.dev/${{ env.PROJECT_ID }}/spectra-backend/app:${{ github.sha }}"
           docker build -t "$IMAGE" .
           docker push "$IMAGE"
 
@@ -78,7 +78,7 @@ jobs:
         uses: google-github-actions/deploy-cloudrun@v2
         with:
           service: spectra-backend
-          image: gcr.io/${{ env.PROJECT_ID }}/spectra-backend:${{ github.sha }}
+          image: us-docker.pkg.dev/${{ env.PROJECT_ID }}/spectra-backend/app:${{ github.sha }}
           region: ${{ env.REGION }}
           flags: >-
             --allow-unauthenticated
@@ -121,8 +121,8 @@ jobs:
         with:
           project_id: ${{ env.PROJECT_ID }}
 
-      - name: Configure Docker for GCR
-        run: gcloud auth configure-docker gcr.io --quiet
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker us-docker.pkg.dev --quiet
 
       # NEXT_PUBLIC_* vars must be baked in at build time — runtime env vars
       # arrive too late for Next.js static bundles. We derive the WS URL from
@@ -136,7 +136,7 @@ jobs:
 
       - name: Build & push frontend image (WS URL baked in)
         run: |
-          IMAGE="gcr.io/${{ env.PROJECT_ID }}/spectra-frontend:${{ github.sha }}"
+          IMAGE="us-docker.pkg.dev/${{ env.PROJECT_ID }}/spectra-frontend/app:${{ github.sha }}"
           docker build ./frontend \
             --build-arg NEXT_PUBLIC_WS_URL="${{ steps.ws.outputs.url }}" \
             -t "$IMAGE"
@@ -147,7 +147,7 @@ jobs:
         uses: google-github-actions/deploy-cloudrun@v2
         with:
           service: spectra-frontend
-          image: gcr.io/${{ env.PROJECT_ID }}/spectra-frontend:${{ github.sha }}
+          image: us-docker.pkg.dev/${{ env.PROJECT_ID }}/spectra-frontend/app:${{ github.sha }}
           region: ${{ env.REGION }}
           flags: >-
             --allow-unauthenticated
