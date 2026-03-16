@@ -1,7 +1,7 @@
 #!/bin/bash
 # Spectra — Automated deployment to Google Cloud Run
 # Usage: ./deploy.sh <PROJECT_ID> [REGION]
-# Example: ./deploy.sh analog-sum-485815-j3 europe-west1
+# Example: ./deploy.sh your-gcp-project-id europe-west1
 #
 # Prerequisites:
 #   gcloud auth login

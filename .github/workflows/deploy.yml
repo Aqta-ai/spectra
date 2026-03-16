@@ -1,7 +1,7 @@
 # Spectra — CI/CD Pipeline
 # Builds, tests, and deploys to Google Cloud Run on push to main.
 # Required GitHub Secrets:
-#   GCP_PROJECT_ID   — Google Cloud project ID (e.g. analog-sum-485815-j3)
+#   GCP_PROJECT_ID   — Google Cloud project ID (e.g. your-gcp-project-id)
 #   GCP_SA_KEY       — Service account JSON key (base64-encoded)
 #   GOOGLE_API_KEY   — Gemini API key
 
