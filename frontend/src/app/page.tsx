@@ -606,7 +606,7 @@ export default function Home() {
               <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${extensionReady ? "bg-green-400" : "bg-amber-400 animate-pulse"}`} />
               {extensionReady ? <span className="hidden sm:inline">Extension</span> : (
                 <a
-                  href="https://github.com/AqtaAI/spectra#browser-extension"
+                  href="https://github.com/Aqta-ai/spectra#browser-extension"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="hover:text-amber-300 underline underline-offset-1"
@@ -670,7 +670,7 @@ export default function Home() {
         {!extensionReady && isConnected && showExtensionBanner && (
           <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40 max-w-lg mx-4 flex items-center gap-3 px-4 py-3 rounded-xl bg-amber-500/15 border border-amber-500/30 backdrop-blur-sm" role="status">
             <span className="text-amber-300 text-sm">
-              Install the <a href="https://github.com/AqtaAI/spectra#browser-extension" target="_blank" rel="noopener noreferrer" className="underline font-medium">Spectra Bridge</a> extension to click, type, and navigate with voice.
+              Install the <a href="https://github.com/Aqta-ai/spectra#browser-extension" target="_blank" rel="noopener noreferrer" className="underline font-medium">Spectra Bridge</a> extension to click, type, and navigate with voice.
             </span>
             <button onClick={() => setShowExtensionBanner(false)} className="flex-shrink-0 p-1 rounded hover:bg-amber-500/20 text-amber-200" aria-label="Dismiss">×</button>
           </div>
@@ -1021,7 +1021,7 @@ export default function Home() {
         {" · "}
         <a href="/overlay" className="hover:text-white/50 transition-colors">Overlay</a>
         {" · "}
-        <a href="https://github.com/AqtaAI/spectra" target="_blank" rel="noopener noreferrer" className="hover:text-white/50 transition-colors">GitHub</a>
+        <a href="https://github.com/Aqta-ai/spectra" target="_blank" rel="noopener noreferrer" className="hover:text-white/50 transition-colors">GitHub</a>
         {" · Apache 2.0"}
       </footer>
 
