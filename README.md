@@ -13,6 +13,7 @@ Spectra is a real-time AI agent that understands your screen, highlights what ma
 
 [![Live App](https://img.shields.io/badge/LIVE_APP-spectra.aqta.ai-22c55e?style=for-the-badge)](https://spectra.aqta.ai)
 [![Demo Video](https://img.shields.io/badge/DEMO_VIDEO-YouTube-ff0000?style=for-the-badge&logo=youtube&logoColor=white)](https://www.youtube.com/watch?v=MJQX4xapRA0)
+[![AI Overlay](https://img.shields.io/badge/AI_OVERLAY-See_Your_Site-a29bfe?style=for-the-badge&logo=eye&logoColor=white)](https://spectra.aqta.ai/overlay)
 [![Built With](https://img.shields.io/badge/BUILT_WITH-Gemini_Live_API-4285F4?style=for-the-badge&logo=google&logoColor=white)](https://ai.google.dev/gemini-api/docs/live)
 [![Google Cloud](https://img.shields.io/badge/GOOGLE_CLOUD-Cloud_Run-4285F4?style=for-the-badge&logo=googlecloud&logoColor=white)](https://cloud.google.com/run)
 [![Python](https://img.shields.io/badge/PYTHON-FastAPI-3B82F6?style=for-the-badge&logo=python&logoColor=white)](https://fastapi.tiangolo.com)
