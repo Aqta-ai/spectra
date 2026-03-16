@@ -9,7 +9,7 @@ Spectra is a real-time AI screen assistant built for the Google Gemini Live Agen
 ```mermaid
 graph TB
     %% User Layer
-    User[👤 User<br/>🎤 Voice + 🔊 Audio + ⌨️ Keyboard<br/>Wake: 'Hey Spectra' | Q/W/Esc]
+    User[👤 User<br/>🎤 Voice + 🔊 Audio + ⌨️ Keyboard<br/>Wake: Hey Spectra / Q/W/Esc]
 
     %% Frontend Layer
     subgraph Frontend["🌐 Frontend (Next.js + React)"]
@@ -32,7 +32,7 @@ graph TB
         WSServer[🔌 WebSocket Server<br/>Client ↔ Gemini Bridge]
         SessionMgr[📋 Session Manager<br/>SpectraStreamingSession]
         ToolRouter[🛠️ Tool Router<br/>Server vs Client tools]
-        Personalisation[👤 User Preferences<br/>Workflows & History]
+        Memory[💾 Memory<br/>Session State & History]
     end
 
     %% Gemini Live API
