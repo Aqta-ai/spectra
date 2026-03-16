@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   description:
     "For anyone who can't see a screen, doesn't want to stare at one or just needs their hands free. Spectra sees your screen, speaks what matters, and acts on your voice command.",
   keywords: ["accessibility", "screen reader", "AI agent", "voice control", "browser automation", "hands-free browsing"],
-  authors: [{ name: "Anya Chueayen", url: "https://github.com/AqtaAI/spectra" }],
+  authors: [{ name: "Anya Chueayen", url: "https://github.com/Aqta-ai/spectra" }],
   creator: "Anya Chueayen",
   metadataBase: new URL("https://spectra.aqta.ai"),
   manifest: "/manifest.json",

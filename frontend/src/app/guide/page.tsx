@@ -159,7 +159,7 @@ export default function GuidePage() {
           {" · "}
           <Link href="/overlay" className="hover:text-white/50 transition-colors">Overlay</Link>
           {" · "}
-          <a href="https://github.com/AqtaAI/spectra" target="_blank" rel="noopener noreferrer" className="hover:text-white/50 transition-colors">GitHub</a>
+          <a href="https://github.com/Aqta-ai/spectra" target="_blank" rel="noopener noreferrer" className="hover:text-white/50 transition-colors">GitHub</a>
           {" · Apache 2.0"}
         </div>
       </footer>

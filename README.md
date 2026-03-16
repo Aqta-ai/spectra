@@ -350,7 +350,7 @@ Before going live (e.g. at spectra.aqta.ai), confirm:
 ### Run Locally with Docker
 
 ```bash
-git clone https://github.com/AqtaAI/spectra.git
+git clone https://github.com/Aqta-ai/spectra.git
 cd spectra
 
 # Configure credentials (pick one):

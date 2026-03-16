@@ -600,7 +600,7 @@ export default function OverlayPage() {
           </a>
           {" · "}
           <a
-            href="https://github.com/AqtaAI/spectra"
+            href="https://github.com/Aqta-ai/spectra"
             target="_blank"
             rel="noopener noreferrer"
             className="hover:text-white/80 transition-colors"
