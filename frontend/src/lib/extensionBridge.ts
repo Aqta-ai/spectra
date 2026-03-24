@@ -87,12 +87,12 @@ export function listenForExtension(): void {
 
         if (event.data.success === false) {
           const result = event.data.result || event.data.error || "";
+          // Reduce health only for connection-level failures (not app-level action errors)
           if (result.includes("extension_error") || result.includes("Could not reach") || result.includes("No target tab")) {
             connectionHealth = Math.max(0, connectionHealth - 20);
-            pending.reject(new Error(result));
-            return;
           }
-          pending.resolve(result || "action_failed");
+          // Always reject — resolving would make Gemini treat the error string as a success result
+          pending.reject(new Error(result || "action_failed"));
           return;
         }
 
