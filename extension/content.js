@@ -73,7 +73,7 @@ if (isSpectraPage()) {
         }
         
         const payload = message.type === 'spectra_execute' && message.params
-          ? { action: message.action, ...message.params }
+          ? { action: message.action, ...(message.params || {}) }
           : message;
         
         const result = await handleAction(payload);
@@ -146,7 +146,7 @@ async function handleAction(message) {
     case 'read_selection':
       return await executeReadSelection(mode);
     default:
-      throw new Error(`Unknown action: ${message.action}`);
+      throw new Error(`Unknown action: ${message.action ?? 'unknown'}`);
   }
 }
 

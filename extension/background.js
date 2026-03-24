@@ -313,7 +313,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const result = await sendToTab(targetTab.id, {
         type: "spectra_execute",
         action: message.action,
-        params: message.params,
+        params: message.params || {},
         messageId: message.messageId,
       });
 
