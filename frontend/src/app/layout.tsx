@@ -1,13 +1,14 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 export const metadata: Metadata = {
   title: "Spectra | Your screen, your voice, your way",
   description:
     "For anyone who can't see a screen, doesn't want to stare at one or just needs their hands free. Spectra sees your screen, speaks what matters, and acts on your voice command.",
   keywords: ["accessibility", "screen reader", "AI agent", "voice control", "browser automation", "hands-free browsing"],
-  authors: [{ name: "Anya Chueayen", url: "https://github.com/Aqta-ai/spectra" }],
-  creator: "Anya Chueayen",
+  authors: [{ name: "Aqta Technologies", url: "https://github.com/Aqta-ai/spectra" }],
+  creator: "Aqta Technologies",
   metadataBase: new URL("https://spectra.aqta.ai"),
   manifest: "/manifest.json",
   icons: {
@@ -94,7 +95,7 @@ export default function RootLayout({
           </ul>
         </div>
         <main id="main-content" role="main">
-          {children}
+          <ErrorBoundary>{children}</ErrorBoundary>
         </main>
       </body>
     </html>
