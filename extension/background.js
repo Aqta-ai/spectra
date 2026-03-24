@@ -292,11 +292,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 resolve();
               }
             };
-            // hard cap at 8s — always remove listener on timeout to prevent leak
+            // hard cap at 12s — matches ACTION_TIMEOUT in session.py
             const timeout = setTimeout(() => {
               chrome.tabs.onUpdated.removeListener(listener);
               resolve();
-            }, 8000);
+            }, 12000);
             chrome.tabs.onUpdated.addListener(listener);
           });
 

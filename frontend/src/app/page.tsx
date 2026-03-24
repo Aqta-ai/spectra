@@ -139,13 +139,14 @@ export default function Home() {
   const [connectionState, setConnectionState] = useState<ConnectionState>("disconnected");
   const [reconnectAttempt, setReconnectAttempt] = useState(0);
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
+  const extensionBannerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [pendingMessages, setPendingMessages] = useState(0);
   const [isThinking, setIsThinking] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [assertiveAnnouncement, setAssertiveAnnouncement] = useState("");
   const [politeAnnouncement, setPoliteAnnouncement] = useState("");
   const [extensionReady, setExtensionReady] = useState(false);
-  const [showExtensionBanner, setShowExtensionBanner] = useState(true);
+  const [showExtensionBanner, setShowExtensionBanner] = useState(false);
 
   const { isFirstTime, hasSharedScreen, shouldShowOnboarding, markScreenShared, dismissOnboarding, markOnboardingComplete } = useOnboarding();
 
@@ -188,7 +189,13 @@ export default function Home() {
     const checkExtension = () => setExtensionReady(isExtensionAvailable());
     const id = setInterval(checkExtension, 1500);
     checkExtension();
-    return () => clearInterval(id);
+    // Delay banner by 2s — extension pings back within ~500ms if installed,
+    // so showing it immediately causes a visible flicker on every load.
+    extensionBannerTimerRef.current = setTimeout(() => setShowExtensionBanner(true), 2000);
+    return () => {
+      clearInterval(id);
+      if (extensionBannerTimerRef.current) clearTimeout(extensionBannerTimerRef.current);
+    };
   }, []);
 
   useEffect(() => {
@@ -618,7 +625,7 @@ export default function Home() {
 
             <button
               onClick={() => setShowKeyboardShortcuts((v) => !v)}
-              className="text-xs text-white/40 hover:text-white/80 transition-colors hidden sm:block"
+              className="text-xs text-white/40 hover:text-white/80 transition-colors"
               aria-label="Toggle keyboard shortcuts"
               aria-expanded={showKeyboardShortcuts}
             >
@@ -780,6 +787,28 @@ export default function Home() {
                   {icon}{label}
                 </span>
               ))}
+            </div>
+
+            {/* Try asking me prompts */}
+            <div className="space-y-2 text-center">
+              <p className="text-xs text-white/30 uppercase tracking-wider">Try saying</p>
+              <div className="flex flex-wrap justify-center gap-2">
+                {[
+                  "Search for flights to London",
+                  "Read this article aloud",
+                  "Fill in this form",
+                  "Find the cheapest option",
+                  "Click the sign in button",
+                  "Scroll down and summarise",
+                ].map((prompt) => (
+                  <span
+                    key={prompt}
+                    className="px-3 py-1.5 text-xs text-white/50 rounded-full border border-white/10 bg-white/3 cursor-default select-none"
+                  >
+                    &ldquo;{prompt}&rdquo;
+                  </span>
+                ))}
+              </div>
             </div>
 
           </div>
