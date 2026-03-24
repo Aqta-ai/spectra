@@ -305,7 +305,7 @@ export function useSpectraSocket(options: SpectraSocketOptions) {
       // Re-send extension_status when extension becomes available (it may respond to ping after connect)
       let lastSentExtension = extAvailable;
       if (extCheckIntervalRef.current) clearInterval(extCheckIntervalRef.current);
-      extCheckIntervalRef.current = window.setInterval(() => {
+      extCheckIntervalRef.current = setInterval(() => {
         if (wsRef.current?.readyState !== WebSocket.OPEN) return;
         const nowAvailable = typeof window !== 'undefined' && !!(window as any).spectraExtensionAvailable;
         if (nowAvailable && !lastSentExtension) {
@@ -387,7 +387,7 @@ export function useSpectraSocket(options: SpectraSocketOptions) {
         ws.send(JSON.stringify({ type: "extension_status", available: extAvailable }));
         let lastSentExtension = extAvailable;
         if (extCheckIntervalRef.current) clearInterval(extCheckIntervalRef.current);
-        extCheckIntervalRef.current = window.setInterval(() => {
+        extCheckIntervalRef.current = setInterval(() => {
           if (wsRef.current?.readyState !== WebSocket.OPEN) return;
           const nowAvailable = typeof window !== 'undefined' && !!(window as any).spectraExtensionAvailable;
           if (nowAvailable && !lastSentExtension) {
