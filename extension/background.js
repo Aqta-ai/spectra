@@ -285,7 +285,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           // Wait for the tab to finish loading so subsequent actions (click, type) land
           // on a fully-rendered page and the content script is injected before we respond.
           await new Promise((resolve) => {
-            const timeout = setTimeout(resolve, 8000); // hard cap at 8s
             const listener = (tabId, changeInfo) => {
               if (tabId === targetTab.id && changeInfo.status === "complete") {
                 chrome.tabs.onUpdated.removeListener(listener);
@@ -293,6 +292,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 resolve();
               }
             };
+            // hard cap at 8s — always remove listener on timeout to prevent leak
+            const timeout = setTimeout(() => {
+              chrome.tabs.onUpdated.removeListener(listener);
+              resolve();
+            }, 8000);
             chrome.tabs.onUpdated.addListener(listener);
           });
 

@@ -1067,7 +1067,7 @@ class SpectraStreamingSession:
                 action_id = str(uuid.uuid4())[:8]
                 logger.info("→ Sending action to extension: %s(%s) id=%s",
                             fc.name, {k: v for k, v in params.items() if not k.startswith("_")}, action_id)
-                future: asyncio.Future = asyncio.get_event_loop().create_future()
+                future: asyncio.Future = asyncio.get_running_loop().create_future()
                 self._action_pending[action_id] = future
                 await self.websocket.send_json({
                     "type": "action",
@@ -1611,7 +1611,7 @@ class SpectraStreamingSession:
         
         # Request selection from client
         action_id = str(uuid.uuid4())[:8]
-        future: asyncio.Future = asyncio.get_event_loop().create_future()
+        future: asyncio.Future = asyncio.get_running_loop().create_future()
         self._action_pending[action_id] = future
         await self.websocket.send_json({
             "type": "action",
