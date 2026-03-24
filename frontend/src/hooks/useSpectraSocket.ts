@@ -39,6 +39,9 @@ export function useSpectraSocket(options: SpectraSocketOptions) {
   const gainNodeRef = useRef<GainNode | null>(null);
   const screenReaderActiveRef = useRef(false);
   const cleanupMonitorRef = useRef<(() => void) | null>(null);
+  const extCheckIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const latencyT1Ref = useRef<number>(0);
+  const firstChunkLoggedRef = useRef<boolean>(false);
   optionsRef.current = options;
 
   /** Generate or retrieve persistent session ID for this browser tab */
@@ -85,22 +88,13 @@ export function useSpectraSocket(options: SpectraSocketOptions) {
     }
   }, [options.audioDuckingEnabled]);
 
-  /** Detect if screen reader is active (heuristic-based) */
+  /** Detect if screen reader is active via UA string only.
+   *  DOM heuristics (aria-live, .sr-only, aria-label) were removed — Spectra's
+   *  own ARIA-compliant page matches all of them, causing permanent false positives. */
   const detectScreenReader = useCallback(() => {
     if (typeof window === 'undefined') return false;
-    
-    // Check for common screen reader indicators
-    const hasAriaLive = document.querySelectorAll('[aria-live]').length > 0;
-    const hasScreenReaderText = document.querySelectorAll('.sr-only, .visually-hidden').length > 0;
-    const hasAriaLabel = document.querySelectorAll('[aria-label]').length > 10;
-    
-    // Check for screen reader-specific user agent strings
-    const userAgent = navigator.userAgent.toLowerCase();
-    const hasScreenReaderUA = userAgent.includes('nvda') || 
-                               userAgent.includes('jaws') || 
-                               userAgent.includes('voiceover');
-    
-    return hasAriaLive || hasScreenReaderText || hasAriaLabel || hasScreenReaderUA;
+    const ua = navigator.userAgent.toLowerCase();
+    return ua.includes('nvda') || ua.includes('jaws') || ua.includes('voiceover');
   }, []);
 
   /** Apply audio ducking when screen reader is detected */
@@ -213,9 +207,29 @@ export function useSpectraSocket(options: SpectraSocketOptions) {
         optionsRef.current.onText(msg.data as string);
         break;
       case "transcript":
+        // T1: Gemini finished hearing the user — processing starts now
+        latencyT1Ref.current = performance.now();
+        firstChunkLoggedRef.current = false;
         optionsRef.current.onTranscript(msg.data as string);
         break;
       case "audio":
+        // T2: first audio chunk back from Gemini — log transcript→audio gap
+        if (!firstChunkLoggedRef.current && latencyT1Ref.current > 0) {
+          const ms = Math.round(performance.now() - latencyT1Ref.current);
+          console.log(`[Spectra Latency] transcript→first_audio: ${ms}ms`);
+          // Accumulate samples on window for easy console inspection
+          if (typeof window !== 'undefined') {
+            (window as any).__spectraLatency = (window as any).__spectraLatency ?? [];
+            (window as any).__spectraLatency.push(ms);
+            const samples: number[] = (window as any).__spectraLatency;
+            if (samples.length >= 3) {
+              const sorted = [...samples].sort((a, b) => a - b);
+              const median = sorted[Math.floor(sorted.length / 2)];
+              console.log(`[Spectra Latency] median over ${samples.length} samples: ${median}ms  (all: ${samples.join(', ')}ms)`);
+            }
+          }
+          firstChunkLoggedRef.current = true;
+        }
         optionsRef.current.onAudio(msg.data as string);
         break;
       case "action": {
@@ -290,16 +304,23 @@ export function useSpectraSocket(options: SpectraSocketOptions) {
       ws.send(JSON.stringify({ type: "extension_status", available: extAvailable }));
       // Re-send extension_status when extension becomes available (it may respond to ping after connect)
       let lastSentExtension = extAvailable;
-      const extensionCheckInterval = window.setInterval(() => {
+      if (extCheckIntervalRef.current) clearInterval(extCheckIntervalRef.current);
+      extCheckIntervalRef.current = window.setInterval(() => {
         if (wsRef.current?.readyState !== WebSocket.OPEN) return;
         const nowAvailable = typeof window !== 'undefined' && !!(window as any).spectraExtensionAvailable;
         if (nowAvailable && !lastSentExtension) {
           wsRef.current!.send(JSON.stringify({ type: "extension_status", available: true }));
           lastSentExtension = true;
-          clearInterval(extensionCheckInterval);
+          clearInterval(extCheckIntervalRef.current!);
+          extCheckIntervalRef.current = null;
         }
       }, 2000);
-      window.setTimeout(() => clearInterval(extensionCheckInterval), 16000);
+      window.setTimeout(() => {
+        if (extCheckIntervalRef.current) {
+          clearInterval(extCheckIntervalRef.current);
+          extCheckIntervalRef.current = null;
+        }
+      }, 16000);
       flushQueue(ws);
     };
 
@@ -365,16 +386,23 @@ export function useSpectraSocket(options: SpectraSocketOptions) {
         let extAvailable = typeof window !== 'undefined' && !!(window as any).spectraExtensionAvailable;
         ws.send(JSON.stringify({ type: "extension_status", available: extAvailable }));
         let lastSentExtension = extAvailable;
-        const extensionCheckInterval = window.setInterval(() => {
+        if (extCheckIntervalRef.current) clearInterval(extCheckIntervalRef.current);
+        extCheckIntervalRef.current = window.setInterval(() => {
           if (wsRef.current?.readyState !== WebSocket.OPEN) return;
           const nowAvailable = typeof window !== 'undefined' && !!(window as any).spectraExtensionAvailable;
           if (nowAvailable && !lastSentExtension) {
             wsRef.current!.send(JSON.stringify({ type: "extension_status", available: true }));
             lastSentExtension = true;
-            clearInterval(extensionCheckInterval);
+            clearInterval(extCheckIntervalRef.current!);
+            extCheckIntervalRef.current = null;
           }
         }, 2000);
-        window.setTimeout(() => clearInterval(extensionCheckInterval), 16000);
+        window.setTimeout(() => {
+          if (extCheckIntervalRef.current) {
+            clearInterval(extCheckIntervalRef.current);
+            extCheckIntervalRef.current = null;
+          }
+        }, 16000);
         flushQueue(ws);
 
         // Re-wire for reconnection support
@@ -411,6 +439,12 @@ export function useSpectraSocket(options: SpectraSocketOptions) {
     wsRef.current = null;
     setIsConnected(false);
     
+    // Cleanup extension check interval
+    if (extCheckIntervalRef.current) {
+      clearInterval(extCheckIntervalRef.current);
+      extCheckIntervalRef.current = null;
+    }
+
     // Cleanup screen reader monitor
     cleanupMonitorRef.current?.();
     cleanupMonitorRef.current = null;
@@ -421,7 +455,7 @@ export function useSpectraSocket(options: SpectraSocketOptions) {
       audioContextRef.current = null;
       gainNodeRef.current = null;
     }
-    
+
     // NOTE: We intentionally DO NOT clear sessionIdRef.current here
     // This allows reconnection to reuse the same session_id
     console.log(`[SpectraSocket] Disconnected but preserving session_id: ${sessionIdRef.current}`);
@@ -469,6 +503,12 @@ export function useSpectraSocket(options: SpectraSocketOptions) {
   // Cleanup on component unmount
   useEffect(() => {
     return () => {
+      // Cleanup extension check interval
+      if (extCheckIntervalRef.current) {
+        clearInterval(extCheckIntervalRef.current);
+        extCheckIntervalRef.current = null;
+      }
+
       // Cleanup screen reader monitor
       cleanupMonitorRef.current?.();
       cleanupMonitorRef.current = null;
