@@ -79,7 +79,7 @@ async def sse_endpoint(request: Request, session_id: str = None):
         EventSourceResponse for SSE streaming
     """
     if not session_id:
-        session_id = f"sse-{asyncio.get_event_loop().time()}"
+        session_id = f"sse-{asyncio.get_running_loop().time()}"
     
     logger.info(f"SSE connection established for session {session_id}")
     

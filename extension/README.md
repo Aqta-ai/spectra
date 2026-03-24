@@ -1,6 +1,6 @@
 # Spectra Bridge — Browser Extension
 
-AI screen reader and voice assistant for blind and hands-free users. Built by Anya, Aqta.
+AI screen reader and voice assistant for blind and hands-free users. By Aqta Technologies.
 
 ## Browser support
 
@@ -58,7 +58,7 @@ Runs the same in **Chrome, Arc, Comet**, and other Chromium-based browsers.
 
 ## Maintainer
 
-**Anya, Aqta** — Aqta Technologies Ltd, Dublin, Ireland
+**Aqta Technologies Ltd** — Dublin, Ireland
 
 - GitHub: [https://github.com/Aqta-ai](https://github.com/Aqta-ai)
 - Website: [https://aqta.ai](https://aqta.ai)

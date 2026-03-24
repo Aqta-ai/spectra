@@ -254,5 +254,8 @@ public
 tmp/
 temp/
 
+# One-pagers and pitch decks (internal)
+spectra-one-pager.pdf
+
 # Keep: README.md, LICENSE, CONTRIBUTING.md, setup.py, .mailmap
 
