@@ -355,6 +355,13 @@ export function useSpectraSocket(options: SpectraSocketOptions) {
         old.close(1000);
       }
 
+      // Cancel any pending auto-reconnect — we're connecting manually now.
+      // Without this, connectInternal() fires after connect() succeeds and kills the new session.
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+      }
+
       intentionalCloseRef.current = false;
       reconnectAttemptRef.current = 0;
 
