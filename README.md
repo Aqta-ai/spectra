@@ -4,8 +4,8 @@
   <img src="spectra-banner.png" alt="Spectra — your screen, your voice, your way" width="100%" />
 </p>
 
-> I got tired of reading. Tired of staring at screens. Tired of typing.
-> So I built something that does it for me.
+> Too much reading. Too much staring at screens. Too much typing.
+> We built Spectra so you don't have to.
 
 Spectra is a real-time AI agent that understands your screen, highlights what matters, and responds to your voice. It clicks, types, scrolls, and navigates, so you don't have to.
 
@@ -30,7 +30,7 @@ Whether you're visually impaired, have RSI, multitasking, or just want hands-fre
 
 ---
 
-## Why Only Gemini Can Do This
+## The Technology
 
 Every other AI browser agent uses a request/response loop: send a screenshot, wait for a text reply, parse it, act. That model has a floor, there's always a gap, always a turn boundary, always a moment where the AI is gone and you're waiting.
 
@@ -42,7 +42,7 @@ Three Gemini capabilities make this possible and aren't replicated anywhere else
 - **Multimodal Live streaming** — screenshots and audio arrive in the same stream Gemini is already reasoning over; no separate vision API call, no round-trip
 - **Thinking with suppressed chain-of-thought** — `gemini-2.5-flash` reasons internally via its thinking budget but we suppress emission of those thoughts, so the model navigates complex multi-step tasks intelligently without leaking internal monologue to the audio stream
 
-No other model family currently exposes all three in a single real-time API. That is why Spectra is built on Gemini.
+No other model family currently exposes all three in a single real-time API.
 
 ---
 
@@ -129,23 +129,6 @@ No mouse. No keyboard. No reading. A task that takes a sighted person 30 seconds
 | **Zero data stored**          | Screenshots in RAM only, nothing saved to disk                       |
 | **Accessibility-first**       | Skip links, ARIA labels, screen reader compatible UI                  |
 | **Overlay view**              | The page as Spectra sees it, structure, priorities, a11y hints. [spectra.aqta.ai/overlay](https://spectra.aqta.ai/overlay) or localhost:3000/overlay |
-
----
-
-## Technical Highlights
-
-
-| Requirement                             | Status | Location                                                       |
-| --------------------------------------- | ------ | -------------------------------------------------------------- |
-| Gemini Live API (`bidiGenerateContent`) | ✅      | `backend/app/streaming/session.py`                             |
-| Google GenAI SDK                        | ✅      | `backend/requirements.txt` (`google-genai>=1.14.0`)            |
-| Google Cloud deployment (Cloud Run)     | ✅      | `deploy.sh` · `infra/main.tf`                                  |
-| Multimodal: screenshot → action         | ✅      | `useScreenCapture.ts` → `session.py`                           |
-| Native audio streaming (Aoede voice)    | ✅      | Gemini Live API native audio I/O                               |
-| Architecture diagram                    | ✅      | [Below](#-architecture) · `[ARCHITECTURE.md](ARCHITECTURE.md)` |
-| **Bonus:** Infrastructure-as-Code       | ✅      | `infra/main.tf` (Terraform) · `deploy.sh`                      |
-| **Bonus:** Test suite (20 test files)   | ✅      | `backend/tests/` (pytest)                                      |
-
 
 ---
 
@@ -350,7 +333,7 @@ Before going live (e.g. at spectra.aqta.ai), confirm:
 ### Run Locally with Docker
 
 ```bash
-git clone https://github.com/Aqta-ai/spectra.git
+git clone https://github.com/Aqta-ai/spectra-ai.git
 cd spectra
 
 # Configure credentials (pick one):
