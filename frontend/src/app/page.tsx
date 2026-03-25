@@ -613,7 +613,7 @@ export default function Home() {
               <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${extensionReady ? "bg-green-400" : "bg-amber-400 animate-pulse"}`} />
               {extensionReady ? <span className="hidden sm:inline">Extension</span> : (
                 <a
-                  href="https://github.com/Aqta-ai/spectra#browser-extension"
+                  href="https://chromewebstore.google.com/detail/spectra/ocaghbifpjeaaomknnbmckdemhdllnhg"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="hover:text-amber-300 underline underline-offset-1"
@@ -671,13 +671,23 @@ export default function Home() {
 
       {/* ── Main ───────────────────────────────────────────────────────────── */}
       <main className="flex-1 flex flex-col items-center px-4 sm:px-6 py-8 sm:py-12 relative">
-        {/* Simple, working onboarding - REMOVED */}
+        {/* Onboarding guide for first-time users */}
+        {shouldShowOnboarding && (
+          <OnboardingGuide
+            isFirstTime={isFirstTime}
+            hasSharedScreen={hasSharedScreen}
+            isConnected={isConnected}
+            onConnect={handleStart}
+            onDismiss={dismissOnboarding}
+            onComplete={markOnboardingComplete}
+          />
+        )}
 
         {/* Extension banner when connected but extension missing — dismissible */}
         {!extensionReady && isConnected && showExtensionBanner && (
           <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40 max-w-lg mx-4 flex items-center gap-3 px-4 py-3 rounded-xl bg-amber-500/15 border border-amber-500/30 backdrop-blur-sm" role="status">
             <span className="text-amber-300 text-sm">
-              Install the <a href="https://github.com/Aqta-ai/spectra#browser-extension" target="_blank" rel="noopener noreferrer" className="underline font-medium">Spectra Bridge</a> extension to click, type, and navigate with voice.
+              Install the <a href="https://chromewebstore.google.com/detail/spectra/ocaghbifpjeaaomknnbmckdemhdllnhg" target="_blank" rel="noopener noreferrer" className="underline font-medium">Spectra Bridge</a> extension to click, type, and navigate with voice.
             </span>
             <button onClick={() => setShowExtensionBanner(false)} className="flex-shrink-0 p-1 rounded hover:bg-amber-500/20 text-amber-200" aria-label="Dismiss">×</button>
           </div>

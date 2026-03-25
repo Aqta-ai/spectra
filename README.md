@@ -305,7 +305,7 @@ Before going live (e.g. at spectra.aqta.ai), confirm:
 | **WebSocket URL** | Frontend `NEXT_PUBLIC_WS_URL` is set to your backend WebSocket URL (e.g. `wss://your-backend.run.app/ws`) in the deployment environment. |
 | **Health** | Backend exposes `/health`; Cloud Run / load balancer uses it. Dockerfile includes `HEALTHCHECK`. |
 | **Docs off in prod** | FastAPI `docs_url=None`, `redoc_url=None` so `/docs` is not exposed. |
-| **Extension** | Spectra Bridge extension v2.0.0; install from Chrome Web Store or load unpacked from `extension/`. Users need it for click/type/navigate. |
+| **Extension** | [Spectra Bridge on Chrome Web Store](https://chromewebstore.google.com/detail/spectra/ocaghbifpjeaaomknnbmckdemhdllnhg) — or load unpacked from `extension/` for local dev. Users need it for click/type/navigate. |
 | **Action queue fix** | Backend matches action results by `id` (no cross-talk after timeouts). Session tests pass. |
 | **Cookie / consent** | Spectra is instructed to click “Yes, I agree” (or Accept) on cookie banners, not “Settings” or “No”, to avoid loops. |
 
@@ -323,7 +323,7 @@ Before going live (e.g. at spectra.aqta.ai), confirm:
 ### Try the Live App (fastest)
 
 1. Open **[spectra.aqta.ai](https://spectra.aqta.ai)** in Chrome
-2. Install the **Spectra Bridge** extension (see [Extension Setup](#spectra-bridge-chrome-extension) below)
+2. Install the **[Spectra Bridge extension](https://chromewebstore.google.com/detail/spectra/ocaghbifpjeaaomknnbmckdemhdllnhg)** from the Chrome Web Store
 3. Press **Q** to start Spectra
 4. Press **W** to share your screen (select any tab or entire screen)
 5. Say **"What's on my screen?"** — Spectra will describe what it sees
@@ -503,6 +503,12 @@ Say any of these to activate Spectra without pressing Q:
 Spectra requires **Spectra Bridge**, a Chrome extension that executes browser actions (click, type, scroll, navigate) on any webpage. Without this extension, Spectra can describe your screen but cannot perform actions.
 
 ### Install
+
+**Option A — Chrome Web Store (recommended):**
+
+Install [Spectra from the Chrome Web Store](https://chromewebstore.google.com/detail/spectra/ocaghbifpjeaaomknnbmckdemhdllnhg) — no developer mode needed.
+
+**Option B — Load unpacked (for local development):**
 
 1. Open Chrome and go to `chrome://extensions/`
 2. Enable **Developer mode** (toggle, top right)
