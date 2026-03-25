@@ -589,8 +589,6 @@ export default function OverlayPage() {
           />
         </a>
         <div>
-          Built by Anya, Aqta
-          {" · "}
           <a href="/" className="hover:text-white/80 transition-colors">
             Spectra
           </a>
