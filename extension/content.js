@@ -247,9 +247,10 @@ function findInputByDescription(description) {
   if (!description || typeof description !== 'string') return null;
   const want = description.trim().toLowerCase();
   if (!want) return null;
-  
+
   const inputs = document.querySelectorAll('input:not([type="hidden"]):not([type="submit"]):not([type="button"]), textarea, [contenteditable="true"], [role="textbox"], [role="searchbox"], [role="combobox"]');
 
+  let found = null;
   for (const el of inputs) {
     const attrs = [
       (el.getAttribute('placeholder') || '').toLowerCase(),
@@ -260,15 +261,28 @@ function findInputByDescription(description) {
       (el.getAttribute('type') || '').toLowerCase(),
     ];
     const combined = attrs.join(' ');
-    if (combined.includes(want) || (attrs[0] && want.includes(attrs[0])) || (attrs[1] && want.includes(attrs[1]))) return el;
+    if (combined.includes(want) || (attrs[0] && want.includes(attrs[0])) || (attrs[1] && want.includes(attrs[1]))) {
+      found = el;
+      break;
+    }
   }
-  
-  // Fallback: check for common search inputs
+
+  // If the matched element is a combobox/textbox wrapper div (not a real input),
+  // look for an actual <input> child. Google Flights, Kayak, etc. wrap their
+  // <input> inside a [role="combobox"] div — typing into the div does nothing.
+  if (found && found.tagName !== 'INPUT' && found.tagName !== 'TEXTAREA' && !found.isContentEditable) {
+    const inner = found.querySelector('input:not([type="hidden"]):not([type="submit"]):not([type="button"])');
+    if (inner) found = inner;
+  }
+
+  if (found) return found;
+
+  // Fallback: common search inputs
   if (want.includes('search')) {
     const searchInput = document.querySelector('input[type="search"], input[name="q"], input[name="query"], input[name="search"], input[aria-label*="earch"], [role="searchbox"]');
     if (searchInput) return searchInput;
   }
-  
+
   return null;
 }
 
@@ -377,6 +391,12 @@ async function executeType(text, x, y, description, captureWidth, captureHeight)
   if (typeof x === 'number' && typeof y === 'number' && !Number.isNaN(x) && !Number.isNaN(y)) {
     const scaled = scaleCoordinates(x, y, captureWidth, captureHeight);
     element = document.elementFromPoint(scaled.x, scaled.y);
+    // Unwrap combobox wrapper divs — the hit element may be a [role="combobox"] container,
+    // but the actual <input> child is what accepts typed text.
+    if (element && element.tagName !== 'INPUT' && element.tagName !== 'TEXTAREA' && !element.isContentEditable) {
+      const inner = element.querySelector('input:not([type="hidden"]):not([type="submit"]):not([type="button"])');
+      if (inner) element = inner;
+    }
     if (element && isInput(element)) {
       element.focus();
       element.click();
