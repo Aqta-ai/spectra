@@ -4,6 +4,7 @@ import { useRef, useCallback, useEffect, useState } from "react";
 
 interface ScreenCaptureOptions {
   onFrame: (base64Jpeg: string, width: number, height: number) => void;
+  onStop?: () => void;
   fps?: number;
 }
 
@@ -12,17 +13,19 @@ interface ScreenCaptureOptions {
  * Reduces JPEG quality when frames are large to save bandwidth,
  * skips identical frames, and uses efficient frame processing.
  */
-export function useScreenCapture({ onFrame, fps = 2 }: ScreenCaptureOptions) {
+export function useScreenCapture({ onFrame, onStop, fps = 2 }: ScreenCaptureOptions) {
   const streamRef = useRef<MediaStream | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const onFrameRef = useRef(onFrame);
+  const onStopRef = useRef(onStop);
   const lastFrameHashRef = useRef<string | null>(null);
   const frameCountRef = useRef(0);
   const [isActive, setIsActive] = useState(false);
 
   useEffect(() => { onFrameRef.current = onFrame; }, [onFrame]);
+  useEffect(() => { onStopRef.current = onStop; }, [onStop]);
 
   /** Hash from a region of image data — samples top, center, bottom so scrolling is detected */
   const regionHash = useCallback((
@@ -164,7 +167,10 @@ export function useScreenCapture({ onFrame, fps = 2 }: ScreenCaptureOptions) {
       }, 1000 / fps);
 
       // Handle user stopping screen share via browser UI
-      stream.getVideoTracks()[0].onended = () => stopCapture();
+      stream.getVideoTracks()[0].onended = () => {
+        stopCapture();
+        onStopRef.current?.();
+      };
     } catch (error) {
       // Re-throw the error so the caller can handle it
       throw error;
