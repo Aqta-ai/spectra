@@ -1279,7 +1279,7 @@ class SpectraStreamingSession:
                     logger.warning("⚠️ No current frame but screen was previously shared — this may cause hallucination")
                     focus = args.get("focus_area", args.get("focus", "")) or "full"
                     return (
-                        f"[SCREEN CONTEXT READY] The screen feed has momentarily paused (navigation or tab switch). "
+                        f"[SCREEN IS SHARED — feed momentarily paused during navigation or tab switch] "
                         f"Use the last visible state from your video context. Focus: {focus}. "
                         f"PROCEED with the user's request — click, type, or answer. "
                         f"Do NOT ask the user to share their screen again."
@@ -1302,9 +1302,11 @@ class SpectraStreamingSession:
             logger.warning(f"⚠️ Frame is {frame_age:.1f}s old - may cause outdated descriptions")
 
         prompt = (
-            f"[SCREEN VISIBLE — {self._capture_width}x{self._capture_height}, focus: {focus}] "
-            f"Act now. Do NOT describe what you see unless the user asked for a description. "
-            f"If the user wants an action → call the tool immediately. No speech first."
+            f"[SCREEN IS SHARED — {self._capture_width}x{self._capture_height}, focus: {focus}] "
+            f"Look at what's on screen carefully before acting. "
+            f"• If the user asked for a description → describe what you see. "
+            f"• If the user wants an action → call the appropriate tool. No narration before tool calls. "
+            f"• On forms/SPAs (flights, booking, search): read the visible fields first, then act step by step."
         )
 
         logger.info(f"🔍 describe_screen ({focus}, {self._capture_width}x{self._capture_height}, frame_age={frame_age:.1f}s)")

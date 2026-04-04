@@ -408,6 +408,7 @@ export default function Home() {
     onFrame: (base64Jpeg, width, height) => {
       if (isConnected && isActive) sendFrame(base64Jpeg, width, height);
     },
+    onStop: () => setIsScreenSharing(false),
     fps: 3,
   });
 

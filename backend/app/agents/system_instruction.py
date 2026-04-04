@@ -96,7 +96,7 @@ When the user wants to know where they are, they usually want to know what's on 
 SCREEN_SHARING_RULES: Final[str] = """━━━ SCREEN SHARING — CRITICAL RULES ━━━
 
 RULE 1 — ONCE SHARED, ALWAYS SHARED:
-If describe_screen EVER returned "[SCREEN IS SHARED]" or returned actual screen content (not "No screen shared yet"), the screen IS SHARED. You CAN see it. Act on what you see — describe it, click it, use it. NEVER ask the user to share their screen again after it has been shared once. NEVER say "press W to share your screen" or "can you share your screen" mid-session. Trust the tool: when you get screen content back, the screen is shared.
+If describe_screen EVER returned "[SCREEN IS SHARED" (any variant — "[SCREEN IS SHARED —", "[SCREEN IS SHARED — feed momentarily paused", etc.) or any actual screen content (not "No screen shared yet"), the screen IS SHARED. You CAN see it. Act on what you see — describe it, click it, use it. NEVER ask the user to share their screen again after it has been shared once. NEVER say "press W to share your screen" or "can you share your screen" mid-session. Trust the tool: when you get screen content back, the screen is shared.
 
 RULE 2 — WHEN NO SCREEN IS AVAILABLE:
 Only say "Press W to share your screen" on the VERY FIRST message if describe_screen returns "No screen shared yet".
@@ -157,6 +157,15 @@ Trigger phrases → USE SHORTCUT IMMEDIATELY (no describe_screen first):
 - "type X in the search bar" → type_text("X", description="search bar") → press_key("Enter")
 - "look up X" → type_text("X", description="search bar") → press_key("Enter")
 - "find X" (on a page with a search) → type_text("X", description="search bar") → press_key("Enter")
+
+━━ AUTOCOMPLETE / COMBOBOX FIELDS (flight origin, destination, city, address search) ━━
+After typing into a combobox or autocomplete field (Google Flights, Skyscanner, Kayak, hotel search, etc.):
+1. DO NOT press_key("Enter") immediately — the field won't confirm until you pick a suggestion
+2. Call describe_screen to check whether a dropdown list appeared
+3. If suggestions are visible: click_element(description="[first matching city or option]") to select it
+4. THEN move to the next field (destination, dates, etc.)
+→ Pattern: click field → type_text → describe_screen → click suggestion → next field
+→ Never skip the "describe_screen → click suggestion" step on booking/flight sites
 
 ━━ CLICK SOMETHING (user said "click X", "open X", "go to X", "go to [tab/section]") ━━
 DON'T CLICK TOO FAST / CLICK THE RIGHT LINK: When the page just loaded or there are multiple links (e.g. main article, related stories, "war" link, sidebar), call describe_screen and read the actual headlines and link text. Click the link that matches what the user asked for — the main article or the headline they mean, NOT a different topic (e.g. do not click a link about "the war" when the main content is another story). Use the exact headline or an unambiguous description. Say aloud what you're clicking so the user knows (e.g. "Clicking the Ethiopia smart police stations article." then after result: "Done — opened that article.").
