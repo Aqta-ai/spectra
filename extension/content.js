@@ -175,7 +175,7 @@ function findElementByDescription(description) {
 
   // Include more interactive elements: articles, divs with click handlers, etc.
   const candidates = document.querySelectorAll(
-    'a, button, [role="button"], [role="link"], [role="tab"], [role="menuitem"], [role="article"], article, input[type="submit"], input[type="button"], input:not([type="hidden"]), textarea, select, [role="textbox"], [role="searchbox"], [role="combobox"], [onclick], [tabindex]:not([tabindex="-1"]), summary, label, h1, h2, h3, h4, h5, h6, [class*="card"], [class*="item"], [class*="link"]'
+    'a, button, [role="button"], [role="link"], [role="tab"], [role="menuitem"], [role="option"], [role="listitem"], [role="article"], article, input[type="submit"], input[type="button"], input:not([type="hidden"]), textarea, select, [role="textbox"], [role="searchbox"], [role="combobox"], [onclick], [tabindex]:not([tabindex="-1"]), summary, label, h1, h2, h3, h4, h5, h6, [class*="card"], [class*="item"], [class*="link"]'
   );
 
   let bestMatch = null;
