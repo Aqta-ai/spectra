@@ -313,6 +313,37 @@ SPECTRA_TOOLS = [
             ),
         ),
         types.FunctionDeclaration(
+            name="wait_for_content",
+            description=(
+                "Wait for the screen to update after an action that triggers a visual change "
+                "(typing into autocomplete/combobox, opening a dropdown, date picker, modal, or page transition). "
+                "Returns a fresh screen description once a new frame arrives, or guidance if the page didn't update. "
+                "ALWAYS use this instead of describe_screen after typing into flight/hotel/search autocomplete fields — "
+                "suggestions need 1-2 seconds to render and describe_screen will see the OLD state."
+            ),
+            parameters=types.Schema(
+                type="OBJECT",
+                properties={
+                    "reason": types.Schema(
+                        type="STRING",
+                        description="Why you're waiting (e.g., 'autocomplete suggestions', 'date picker opened', 'search results loading')",
+                    ),
+                    "wait_ms": types.Schema(
+                        type="INTEGER",
+                        description="Max time to wait in milliseconds (default 2000, max 5000). Use 2000 for dropdowns, 3000 for page loads.",
+                        minimum=500,
+                        maximum=5000,
+                    ),
+                    "focus_area": types.Schema(
+                        type="STRING",
+                        description="Screen region to focus on after update",
+                        enum=["full", "center", "top", "bottom"],
+                    ),
+                },
+                required=["reason"],
+            ),
+        ),
+        types.FunctionDeclaration(
             name="click_element",
             description="Click a UI element by description (text label, aria-label, role) or by coordinates. ALWAYS provide description — it is the primary matching method. Coordinates are optional and only needed when description alone is ambiguous.",
             parameters=types.Schema(

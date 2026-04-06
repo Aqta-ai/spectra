@@ -48,7 +48,7 @@ def _get_live_model() -> str:
 _USE_VERTEX = None  # set lazily
 LIVE_MODEL = None   # set lazily
 
-SERVER_SIDE_TOOLS = {"describe_screen", "save_snapshot", "diff_screen", "teach_me_app", "read_selection", "read_page_structure"}
+SERVER_SIDE_TOOLS = {"describe_screen", "wait_for_content", "save_snapshot", "diff_screen", "teach_me_app", "read_selection", "read_page_structure"}
 # Performance tuning - Configurable via environment variables
 MAX_FRAME_QUEUE = int(os.getenv("MAX_FRAME_QUEUE", "3"))
 ACTION_TIMEOUT = float(os.getenv("ACTION_TIMEOUT", "12.0"))  # 12s — navigate waits for page load (up to 8s)
@@ -1236,6 +1236,8 @@ class SpectraStreamingSession:
                 # Update state machine with screen context
                 self.state.update_from_screen_description(result)
                 return result
+            elif tool_name == "wait_for_content":
+                return await self._wait_for_content(args)
             elif tool_name == "save_snapshot":
                 # Capture a text description of the current screen to store alongside the frame
                 # so diff_screen can later tell Gemini what the screen looked like at save time.
@@ -1263,26 +1265,25 @@ class SpectraStreamingSession:
         to describe the current screen content.
         """
         if not self._latest_frame:
-            # Always wait up to 2s for a frame — handles both:
-            # (a) momentary gap during navigation when screen was previously shared
-            # (b) race condition where user speaks immediately after pressing W and
-            #     the first frame (sent 100ms after capture starts) hasn't arrived yet
-            for _ in range(20):
+            # Wait longer (4s) when screen was previously shared — page transitions,
+            # heavy SPA renders (Google Flights, Kayak), and navigation can cause
+            # multi-second frame gaps. 2s was too short and caused the agent to
+            # give up and either hallucinate or ask to re-share screen.
+            wait_ticks = 40 if self._screen_ever_shared else 20  # 4s vs 2s
+            for _ in range(wait_ticks):
                 await asyncio.sleep(0.1)
                 if self._latest_frame:
                     break
 
             if not self._latest_frame:
-                # If the screen was EVER shared this session, don't ask again —
-                # frames may briefly pause during navigation or tab switch.
                 if self._screen_ever_shared:
-                    logger.warning("⚠️ No current frame but screen was previously shared — this may cause hallucination")
+                    logger.warning("⚠️ No current frame but screen was previously shared — falling back to read_page_structure guidance")
                     focus = args.get("focus_area", args.get("focus", "")) or "full"
                     return (
-                        f"[SCREEN IS SHARED — feed momentarily paused during navigation or tab switch] "
-                        f"Use the last visible state from your video context. Focus: {focus}. "
-                        f"PROCEED with the user's request — click, type, or answer. "
-                        f"Do NOT ask the user to share their screen again."
+                        f"[SCREEN IS SHARED — video feed paused during page load or heavy render] "
+                        f"The screen IS still shared. Do NOT ask the user to share their screen again. "
+                        f"Use read_page_structure to get the page DOM (buttons, inputs, links) so you can continue. "
+                        f"Focus: {focus}. PROCEED with the task — use read_page_structure now."
                     )
                 if not hasattr(self, '_screen_share_requested'):
                     self._screen_share_requested = True
@@ -1296,10 +1297,18 @@ class SpectraStreamingSession:
         self._last_describe_time = time.time()
         self.screen_stream_active = True
 
-        # Add frame age check to detect stale frames
         frame_age = time.time() - self.last_frame_ts
         if frame_age > 5.0:
             logger.warning(f"⚠️ Frame is {frame_age:.1f}s old - may cause outdated descriptions")
+
+        # Include frame age hint when stale so Gemini knows to be cautious
+        stale_hint = ""
+        if frame_age > 3.0:
+            stale_hint = (
+                f" ⚠️ Frame is {frame_age:.0f}s old — page may have changed since this frame. "
+                f"If acting on a dynamic page (flights, search, forms), call read_page_structure "
+                f"for accurate element positions before clicking."
+            )
 
         prompt = (
             f"[SCREEN IS SHARED — {self._capture_width}x{self._capture_height}, focus: {focus}] "
@@ -1307,10 +1316,62 @@ class SpectraStreamingSession:
             f"• If the user asked for a description → describe what you see. "
             f"• If the user wants an action → call the appropriate tool. No narration before tool calls. "
             f"• On forms/SPAs (flights, booking, search): read the visible fields first, then act step by step."
+            f"{stale_hint}"
         )
 
         logger.info(f"🔍 describe_screen ({focus}, {self._capture_width}x{self._capture_height}, frame_age={frame_age:.1f}s)")
         return prompt
+
+    async def _wait_for_content(self, args: dict) -> str:
+        """Wait for a FRESH frame (newer than current), then describe.
+
+        Use after typing into autocomplete/combobox fields — gives the page
+        time to render dropdown suggestions before the agent tries to read them.
+        """
+        reason = args.get("reason", "content update")
+        wait_ms = min(int(args.get("wait_ms", 2000)), 5000)  # cap at 5s
+        baseline_ts = self.last_frame_ts
+
+        # Wait for a frame newer than the current one
+        waited = 0
+        while waited < wait_ms:
+            await asyncio.sleep(0.1)
+            waited += 100
+            if self.last_frame_ts > baseline_ts:
+                break
+
+        got_fresh = self.last_frame_ts > baseline_ts
+        frame_age = time.time() - self.last_frame_ts
+
+        # Re-send the fresh frame to Gemini so visual context is up to date
+        if self._latest_frame and self.gemini_session and self._running:
+            try:
+                frame_bytes = base64.b64decode(self._latest_frame)
+                await self.gemini_session.send_realtime_input(
+                    video=types.Blob(data=frame_bytes, mime_type="image/jpeg")
+                )
+                await asyncio.sleep(0.15)
+            except Exception:
+                pass
+
+        focus = args.get("focus_area", "full")
+        freshness = "FRESH" if got_fresh else f"unchanged ({frame_age:.1f}s old)"
+        logger.info(f"⏳ wait_for_content ({reason}, waited={waited}ms, frame={freshness})")
+
+        if got_fresh:
+            return (
+                f"[SCREEN UPDATED — {self._capture_width}x{self._capture_height}, focus: {focus}] "
+                f"A fresh frame arrived after {waited}ms (reason: {reason}). "
+                f"Look at what's on screen NOW — describe visible elements, dropdowns, suggestions, or form state. "
+                f"If you see autocomplete suggestions/dropdown options, click the correct one."
+            )
+        else:
+            return (
+                f"[SCREEN — no new frame after {waited}ms, current frame is {frame_age:.1f}s old] "
+                f"The page may not have visually changed yet (reason: {reason}). "
+                f"Use read_page_structure to get the current DOM state (dropdown options, form fields) "
+                f"or describe what you can see from the existing video context."
+            )
 
     async def send_action_result(self, action_id: str, result: str):
         """Send action result with deduplication."""

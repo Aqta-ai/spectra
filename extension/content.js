@@ -467,7 +467,22 @@ async function executeType(text, x, y, description, captureWidth, captureHeight)
     element.dispatchEvent(new InputEvent('input', { data: text, inputType: 'insertText', bubbles: true }));
     element.dispatchEvent(new Event('change', { bubbles: true }));
   }
-  
+
+  // Dispatch keyboard events for the last character — many autocomplete/combobox
+  // widgets (Google Flights, Kayak, Skyscanner, MUI Autocomplete) listen for
+  // keydown/keyup to trigger suggestion fetches. Without these, typing via
+  // nativeInputValueSetter alone won't open the dropdown.
+  const lastChar = text.slice(-1);
+  const keyOpts = { key: lastChar, code: `Key${lastChar.toUpperCase()}`, bubbles: true, cancelable: true };
+  element.dispatchEvent(new KeyboardEvent('keydown', keyOpts));
+  element.dispatchEvent(new KeyboardEvent('keypress', keyOpts));
+  element.dispatchEvent(new KeyboardEvent('keyup', keyOpts));
+
+  // Also fire a second input event after keyboard events — some React 18+
+  // controlled components batch state updates and only open autocomplete
+  // after the final input event in the microtask queue.
+  element.dispatchEvent(new InputEvent('input', { data: lastChar, inputType: 'insertText', bubbles: true }));
+
   const tag = element.tagName.toLowerCase();
   const elDesc = element.getAttribute('placeholder') || element.getAttribute('aria-label') || tag;
   return `typed_into_${elDesc}`;
