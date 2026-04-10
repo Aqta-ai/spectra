@@ -1285,13 +1285,21 @@ class SpectraStreamingSession:
                         f"Use read_page_structure to get the page DOM (buttons, inputs, links) so you can continue. "
                         f"Focus: {focus}. PROCEED with the task — use read_page_structure now."
                     )
-                if not hasattr(self, '_screen_share_requested'):
-                    self._screen_share_requested = True
+                # Rate-limit screen share requests to avoid spamming user
+                if not hasattr(self, '_screen_share_requested_at'):
+                    self._screen_share_requested_at = time.time()
                     return "No screen shared yet. Ask the user to press W to share their screen."
-                return "Still waiting for screen share."
 
-        if hasattr(self, '_screen_share_requested'):
-            delattr(self, '_screen_share_requested')
+                time_since_request = time.time() - self._screen_share_requested_at
+                if time_since_request > 10:
+                    self._screen_share_requested_at = time.time()
+                    return "Still waiting for screen share. Gently remind user: press W to share screen."
+
+                # Silent wait — don't spam the user. Work with what you have or wait.
+                return "[No screen available yet — user hasn't shared. Don't repeat the request. Continue conversation or wait silently.]"
+
+        if hasattr(self, '_screen_share_requested_at'):
+            delattr(self, '_screen_share_requested_at')
 
         focus = args.get("focus_area", args.get("focus", "")) or "full"
         self._last_describe_time = time.time()
