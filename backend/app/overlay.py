@@ -79,21 +79,53 @@ def _trim_html(html: str, max_bytes: int = MAX_HTML_BYTES) -> str:
 
 
 async def _fetch_html(url: str) -> tuple[str, str]:
-    """Async fetch URL, return (title_or_empty, trimmed_html). Optimized with shorter timeout."""
-    headers = {
-        "User-Agent": "Mozilla/5.0 (compatible; Spectra-Overlay/1.0; screen-reader analysis; +https://spectra.aqta.ai)",
-        "Accept": "text/html,application/xhtml+xml",
-        "Accept-Encoding": "gzip, deflate",  # Enable compression
-    }
-    async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
-        resp = await client.get(url, headers=headers)
-        resp.raise_for_status()
-        html = resp.text
-    title = ""
-    m = re.search(r"<title[^>]*>([^<]*)</title>", html, re.IGNORECASE | re.DOTALL)
-    if m:
-        title = re.sub(r"\s+", " ", m.group(1)).strip()[:200]
-    return title, _trim_html(html)
+    """Async fetch URL with headless browser, return (title, rendered_html).
+
+    Uses Playwright to render JavaScript and get the full DOM, fixing issues
+    with JS-heavy sites like Skyscanner, Apple, etc.
+    """
+    from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeout
+
+    try:
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            context = await browser.new_context(
+                user_agent="Mozilla/5.0 (compatible; Spectra-Overlay/1.0; screen-reader analysis; +https://spectra.aqta.ai)",
+                viewport={"width": 1280, "height": 720}
+            )
+            page = await context.new_page()
+
+            # Navigate and wait for network to be idle (JS rendered)
+            try:
+                await page.goto(url, wait_until="networkidle", timeout=15000)
+            except PlaywrightTimeout:
+                # Fallback: wait for domcontentloaded if networkidle times out
+                await page.goto(url, wait_until="domcontentloaded", timeout=10000)
+
+            # Get title and rendered HTML
+            title = await page.title() or ""
+            title = re.sub(r"\s+", " ", title).strip()[:200]
+            html = await page.content()
+
+            await browser.close()
+
+            return title, _trim_html(html)
+    except Exception as e:
+        logger.warning("Playwright fetch failed for %s: %s, falling back to httpx", url, e)
+        # Fallback to simple HTTP fetch if Playwright fails
+        headers = {
+            "User-Agent": "Mozilla/5.0 (compatible; Spectra-Overlay/1.0; screen-reader analysis; +https://spectra.aqta.ai)",
+            "Accept": "text/html,application/xhtml+xml",
+        }
+        async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
+            resp = await client.get(url, headers=headers)
+            resp.raise_for_status()
+            html = resp.text
+        title = ""
+        m = re.search(r"<title[^>]*>([^<]*)</title>", html, re.IGNORECASE | re.DOTALL)
+        if m:
+            title = re.sub(r"\s+", " ", m.group(1)).strip()[:200]
+        return title, _trim_html(html)
 
 
 def _gemini_sync(user_content: str) -> Any:

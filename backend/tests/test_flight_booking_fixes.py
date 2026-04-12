@@ -53,17 +53,17 @@ class TestDescribeScreenImprovements:
 
         result = await session._describe_screen({})
         assert "No screen shared" in result
-        assert hasattr(session, '_screen_share_requested')
+        assert hasattr(session, '_screen_share_requested_at')
 
     @pytest.mark.asyncio
     async def test_no_frame_never_shared_second_request(self, session):
-        """Second call with no frame returns 'Still waiting' — no repeat prompt."""
+        """Second call with no frame returns 'Still waiting' message after 10s cooldown."""
         session._latest_frame = None
         session._screen_ever_shared = False
-        session._screen_share_requested = True
+        session._screen_share_requested_at = time.time() - 11  # 11s ago, past cooldown
 
         result = await session._describe_screen({})
-        assert "Still waiting" in result
+        assert "Still waiting for screen share" in result
 
     @pytest.mark.asyncio
     async def test_no_frame_previously_shared_suggests_read_page_structure(self, session):
@@ -139,15 +139,15 @@ class TestDescribeScreenImprovements:
 
     @pytest.mark.asyncio
     async def test_screen_share_requested_cleared_on_frame(self, session):
-        """_screen_share_requested flag should be cleared when frame is present."""
-        session._screen_share_requested = True
+        """_screen_share_requested_at timestamp should be cleared when frame is present."""
+        session._screen_share_requested_at = time.time()
         session._latest_frame = base64.b64encode(b"frame").decode()
         session._capture_width = 640
         session._capture_height = 480
         session.last_frame_ts = time.time()
 
         await session._describe_screen({})
-        assert not hasattr(session, '_screen_share_requested')
+        assert not hasattr(session, '_screen_share_requested_at')
 
 
 # ─── wait_for_content tool ─────────────────────────────────────────────────

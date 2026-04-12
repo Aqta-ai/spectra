@@ -365,7 +365,7 @@ export default function Home() {
     },
     onDisconnect: () => {
       setConnectionState("disconnected");
-      setStatusText("Disconnected");
+      setStatusText("Connection ended");
       announceAssertive("Spectra has disconnected.");
     },
     onReconnecting: (attempt) => {
@@ -593,7 +593,7 @@ export default function Home() {
                   ? "Failed"
                   : connectionState === "connected"
                   ? "Connected"
-                  : "Disconnected"}
+                  : "Ready"}
               </span>
               {connectionState === "failed" && (
                 <button
@@ -738,6 +738,13 @@ export default function Home() {
                   : "text-white"
               }`}>{statusText}</h2>
 
+              {/* Explanation - only show on initial load */}
+              {!isActive && messages.length === 0 && statusText === "Your screen, your voice, your way" && (
+                <p className="text-base text-white/70 max-w-2xl mx-auto">
+                  Spectra sees your screen, listens to your voice, and takes action — click, type, navigate, all hands-free.
+                </p>
+              )}
+
               {/* Helpful shortcuts - always visible */}
               {!isActive && messages.length === 0 && (
                 <div className="flex flex-wrap justify-center gap-3 text-sm text-white/60">
@@ -774,16 +781,38 @@ export default function Home() {
                 Reconnecting…
               </div>
             ) : (
-              <button
-                onClick={handleRetryConnection}
-                className="flex items-center gap-2.5 px-10 py-3.5 bg-spectra-primary hover:bg-spectra-primary/90 active:scale-95 text-white font-semibold rounded-xl transition-all text-base cta-glow"
-                aria-label="Connect to Spectra"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0" />
-                </svg>
-                Connect
-              </button>
+              <div className="flex flex-col items-center gap-2">
+                <button
+                  onClick={handleRetryConnection}
+                  disabled={!extensionReady}
+                  className={`flex items-center gap-2.5 px-10 py-3.5 font-semibold rounded-xl transition-all text-base ${
+                    extensionReady
+                      ? "bg-spectra-primary hover:bg-spectra-primary/90 active:scale-95 cta-glow cursor-pointer"
+                      : "bg-white/10 cursor-not-allowed opacity-50"
+                  } text-white`}
+                  aria-label={extensionReady ? "Connect to Spectra" : "Install extension first"}
+                  title={!extensionReady ? "Install Spectra Bridge extension to continue" : ""}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0" />
+                  </svg>
+                  Connect
+                </button>
+                {!extensionReady && (
+                  <p className="text-xs text-white/50 max-w-xs text-center">
+                    Install the{" "}
+                    <a
+                      href="https://chromewebstore.google.com/detail/spectra/ocaghbifpjeaaomknnbmckdemhdllnhg"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-spectra-primary hover:text-spectra-secondary underline"
+                    >
+                      Spectra Bridge extension
+                    </a>
+                    {" "}first
+                  </p>
+                )}
+              </div>
             )}
 
             {/* Feature pills */}
@@ -1020,7 +1049,7 @@ export default function Home() {
                 <input
                   ref={inputRef}
                   type="text"
-                  placeholder={isConnected ? "Type a message…" : "Disconnected, press Q to reconnect"}
+                  placeholder={isConnected ? "Type a message…" : "Press Q to connect"}
                   className="flex-1 px-3 py-2.5 bg-transparent border-none focus:outline-none text-white placeholder-white/30 text-sm"
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey && inputRef.current) {

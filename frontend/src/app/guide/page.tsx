@@ -22,10 +22,36 @@ export default function GuidePage() {
       <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight mb-2">
         How to use Spectra
       </h1>
-      <p className="text-spectra-muted text-sm mb-10">
+      <p className="text-spectra-muted text-sm mb-6">
         Spectra sees your screen, speaks what matters, and acts on your voice command.
         No reading. No staring. No typing. Just talk.
       </p>
+
+      {/* Table of contents */}
+      <nav className="mb-10 p-4 rounded-lg bg-white/5 border border-white/10" aria-label="Guide sections">
+        <p className="text-xs uppercase tracking-wider text-spectra-muted mb-3">On this page</p>
+        <ul className="space-y-2 text-sm">
+          {[
+            { href: "#getting-started", label: "Getting started" },
+            { href: "#voice-commands", label: "Voice commands" },
+            { href: "#keyboard-shortcuts", label: "Keyboard shortcuts" },
+            { href: "#extension", label: "Spectra Bridge extension" },
+            { href: "#privacy", label: "Privacy" },
+            { href: "#tips", label: "Tips" },
+            { href: "#self-hosting", label: "Self-hosting" },
+          ].map(({ href, label }) => (
+            <li key={href}>
+              <a
+                href={href}
+                className="text-spectra-secondary hover:text-spectra-primary transition-colors flex items-center gap-2 group"
+              >
+                <span className="w-1 h-1 rounded-full bg-spectra-secondary group-hover:bg-spectra-primary transition-colors" />
+                {label}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </nav>
 
       {/* Getting started */}
       <section className="mb-10" aria-labelledby="getting-started">
@@ -140,16 +166,32 @@ export default function GuidePage() {
         </div>
       </section>
 
+      {/* Self-hosting section */}
+      <section className="mb-10 pb-10 border-b border-white/5" aria-labelledby="self-hosting">
+        <h2 id="self-hosting" className="text-lg font-medium mb-4 flex items-center gap-2">
+          <span className="w-7 h-7 rounded-full bg-spectra-primary/20 text-spectra-secondary text-xs flex items-center justify-center">7</span>
+          Self-hosting
+        </h2>
+        <div className="space-y-3 text-sm text-spectra-muted pl-9">
+          <p>
+            Want to run your own instance? Deploy Spectra to Google Cloud Run in minutes:
+          </p>
+          <a
+            href="https://cloud.google.com/run"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-block opacity-80 hover:opacity-100 transition-opacity"
+            aria-label="Deploy your own instance on Google Cloud Run"
+          >
+            <img src="https://deploy.cloud.run/button.svg" alt="Run on Google Cloud" className="h-8" />
+          </a>
+          <p className="text-xs">
+            See <a href="https://github.com/Aqta-ai/spectra#cloud-deployment" target="_blank" rel="noopener noreferrer" className="text-spectra-secondary hover:text-spectra-primary underline">deployment guide</a> for full instructions.
+          </p>
+        </div>
+      </section>
+
       <footer className="px-4 sm:px-6 py-4 text-center text-xs text-white/30 flex flex-col items-center gap-2 border-t border-white/5">
-        <a
-          href="https://cloud.google.com/run"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="opacity-60 hover:opacity-90 transition-opacity"
-          aria-label="Deployed on Google Cloud Run"
-        >
-          <img src="https://deploy.cloud.run/button.svg" alt="Run on Google Cloud" className="h-7" />
-        </a>
         <div>
           Spectra
           {" · "}

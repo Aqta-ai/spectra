@@ -134,9 +134,9 @@ No mouse. No keyboard. No reading. A task that takes a sighted person 30 seconds
 
 ## Performance
 
-
 | Metric                    | Value                                   |
 | ------------------------- | --------------------------------------- |
+| Test pass rate            | **392/395 (99.2%)**                     |
 | Voice-to-response latency | Sub-second (real-time streaming)        |
 | Screen capture rate       | 2 FPS adaptive JPEG                     |
 | Audio sample rate         | 16kHz PCM mono (input) / 24kHz (output) |

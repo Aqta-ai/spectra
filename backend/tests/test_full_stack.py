@@ -85,6 +85,7 @@ class TestWebSocketFullStack:
             assert data["type"] in [
                 "connected", "ready", "audio", "text", "action",
                 "turn_complete", "heartbeat", "usage_limit", "go_away",
+                "gemini_reconnecting",  # Added: valid connection state
             ] or "session" in str(data).lower()
 
     def test_websocket_accepts_extension_status(self):

@@ -312,6 +312,21 @@ export default function OverlayPage() {
             </button>
           </div>
 
+          {/* Info banner */}
+          <div className="mt-3 px-3 py-2 rounded-lg text-xs flex items-start gap-2" style={{
+            background: "rgba(162,155,254,0.08)",
+            border: "1px solid rgba(162,155,254,0.2)",
+            color: "rgba(255,255,255,0.7)"
+          }}>
+            <svg className="w-4 h-4 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>
+              <strong>Note:</strong> The overlay tool now uses a headless browser to render JavaScript.
+              This means JS-heavy sites like Skyscanner and Apple should work correctly!
+            </span>
+          </div>
+
           {/* Preset chips */}
           <div className="flex gap-2 mt-2.5 flex-wrap">
             {PRESETS.map((p) => (
