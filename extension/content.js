@@ -1,6 +1,6 @@
 /**
  * Spectra Bridge Content Script
- * Handles UI actions (click, type, scroll, navigate) on behalf of Spectra AI
+ * Executes UI actions (click, type, scroll, navigate) in the target tab on behalf of Spectra.
  */
 
 const SPECTRA_ORIGINS = [

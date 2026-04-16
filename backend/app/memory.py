@@ -1,11 +1,11 @@
 """
-Spectra Memory System - Persistent user context and learning.
+Spectra Memory System — persistent user context and learning.
 
-Transforms Spectra from a stateless tool into a personal assistant that remembers:
+Transforms Spectra from a stateless tool into a personal assistant that retains:
 - User preferences (speech rate, verbosity, navigation style)
-- Frequently used apps and websites
+- Frequently used applications and websites
 - Learned shortcuts and corrections
-- Session history and patterns
+- Session history and usage patterns
 """
 
 import json
@@ -33,7 +33,7 @@ class SpectraMemory:
         logger.debug(f"💾 Memory loaded for user {user_id}: Session #{self.memory['session_count']}")
     
     def _load(self) -> Dict[str, Any]:
-        """Load memory from disk or create new memory structure."""
+        """Load memory from disc or create a new memory structure."""
         if self.memory_file.exists():
             try:
                 return json.loads(self.memory_file.read_text())
@@ -63,7 +63,7 @@ class SpectraMemory:
         }
     
     def save(self):
-        """Persist memory to disk atomically (temp file + rename to prevent corruption)."""
+        """Persist memory to disc atomically using a temporary file and rename to prevent corruption."""
         with self._save_lock:
             try:
                 data = json.dumps(self.memory, indent=2)
@@ -82,7 +82,7 @@ class SpectraMemory:
                 logger.error(f"Failed to save memory: {e}")
     
     def start_session(self):
-        """Increment session count and update last session time."""
+        """Increment the session count and record the current session timestamp."""
         self.memory["session_count"] += 1
         self.memory["last_session"] = time.time()
         self.save()
@@ -90,9 +90,9 @@ class SpectraMemory:
     
     def remember(self, key: str, value: Any):
         """
-        Remember a user preference or learned pattern.
-        
-        Supports nested keys with dot notation:
+        Store a user preference or learned pattern.
+
+        Support nested keys using dot notation:
         - remember("user_preferences.speech_rate", 1.5)
         - remember("verbosity", "brief")
         """
@@ -111,9 +111,9 @@ class SpectraMemory:
     
     def recall(self, key: str, default=None) -> Any:
         """
-        Recall a stored memory.
-        
-        Supports nested keys with dot notation:
+        Retrieve a stored memory value.
+
+        Support nested keys using dot notation:
         - recall("user_preferences.speech_rate")
         - recall("verbosity")
         """
@@ -130,8 +130,8 @@ class SpectraMemory:
     
     def add_correction(self, original: str, corrected: str):
         """
-        Learn from user corrections.
-        
+        Record a user correction for future reference.
+
         Example:
         User: "No, that's the compose button, not send"
         System: add_correction("send button", "compose button")
@@ -152,9 +152,9 @@ class SpectraMemory:
     
     def track_app_usage(self, app_name: str, url: str = ""):
         """
-        Track frequently used apps and websites.
-        
-        Maintains a list of top 10 most-used apps for context.
+        Record usage of an application or website.
+
+        Maintains a list of the ten most-used applications for context injection.
         """
         apps = self.memory["frequent_apps"]
         
@@ -179,8 +179,8 @@ class SpectraMemory:
     
     def learn_shortcut(self, phrase: str, action: str):
         """
-        Learn a user-defined shortcut.
-        
+        Store a user-defined voice shortcut.
+
         Example:
         User: "When I say 'check email', navigate to Gmail"
         System: learn_shortcut("check email", "navigate https://gmail.com")
@@ -190,11 +190,11 @@ class SpectraMemory:
         logger.info(f"⚡ Shortcut learned: '{phrase}' → '{action}'")
     
     def get_shortcut(self, phrase: str) -> Optional[str]:
-        """Get learned shortcut for a phrase."""
+        """Return the stored action for a given shortcut phrase, or None if not found."""
         return self.memory["learned_shortcuts"].get(phrase.lower())
     
     def add_favorite_site(self, url: str):
-        """Add a site to favorites."""
+        """Add a URL to the user's list of favourite sites."""
         if url not in self.memory["favorite_sites"]:
             self.memory["favorite_sites"].append(url)
             self.save()
@@ -202,9 +202,9 @@ class SpectraMemory:
     
     def get_context_for_system_instruction(self) -> str:
         """
-        Generate memory context to inject into system instruction.
-        
-        This personalizes Spectra's behavior based on learned patterns.
+        Generate a memory context block for injection into the system instruction.
+
+        Personalises Spectra's behaviour based on previously learned patterns and preferences.
         """
         prefs = self.memory["user_preferences"]
         apps = self.memory["frequent_apps"][:3]
@@ -236,19 +236,19 @@ I adapt my responses based on these learned patterns.
         return context
     
     def _format_shortcuts(self, shortcuts: Dict[str, str]) -> str:
-        """Format shortcuts for display."""
+        """Format shortcuts for display in the system instruction context block."""
         if not shortcuts:
             return "- None yet"
         return "\n".join(f"- '{phrase}' → {action}" for phrase, action in list(shortcuts.items())[:5])
     
     def _format_corrections(self, corrections: List[Dict]) -> str:
-        """Format recent corrections for display."""
+        """Format recent corrections for display in the system instruction context block."""
         if not corrections:
             return "- None yet"
         return "\n".join(f"- '{c['original']}' should be '{c['corrected']}'" for c in corrections)
     
     def get_stats(self) -> Dict[str, Any]:
-        """Get memory statistics for debugging/monitoring."""
+        """Return memory statistics for debugging and monitoring."""
         return {
             "user_id": self.user_id,
             "session_count": self.memory["session_count"],
@@ -260,7 +260,7 @@ I adapt my responses based on these learned patterns.
         }
     
     def clear(self):
-        """Clear all memory (for testing or user request)."""
+        """Reset all memory to defaults. Used for testing or when the user requests a full reset."""
         self.memory = {
             "user_id": self.user_id,
             "created_at": time.time(),
@@ -285,11 +285,11 @@ I adapt my responses based on these learned patterns.
         logger.warning(f"🗑️ Memory cleared for user {self.user_id}")
     
     def export(self) -> str:
-        """Export memory as JSON string."""
+        """Export the current memory state as a JSON string."""
         return json.dumps(self.memory, indent=2)
     
     def import_memory(self, json_str: str):
-        """Import memory from JSON string."""
+        """Import memory state from a JSON string, replacing the current memory."""
         try:
             self.memory = json.loads(json_str)
             self.save()

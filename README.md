@@ -1,6 +1,6 @@
 # Spectra
 
-<p align="center">
+<p align="centre">
   <img src="spectra-banner.png" alt="Spectra — your screen, your voice, your way" width="100%" />
 </p>
 
@@ -153,7 +153,7 @@ No mouse. No keyboard. No reading. A task that takes a sighted person 30 seconds
 
 Spectra is split into a **Next.js frontend**, a **FastAPI backend** connected to [Gemini Live API](https://ai.google.dev/gemini-api/docs/live), and a **Chrome extension** (Spectra Bridge) for browser actions.
 
-<p align="center">
+<p align="centre">
   <img src="spectra-architecture.png" alt="Spectra system architecture" width="100%" />
 </p>
 
@@ -425,7 +425,7 @@ docker compose build
 
 ## Cloud Deployment
 
-<p align="center">
+<p align="centre">
   <img src="spectra-gcp-architecture.png" alt="Spectra Google Cloud architecture (europe-west1)" width="100%" />
 </p>
 
@@ -621,7 +621,7 @@ If you rely on assistive technology for daily tasks, please continue using your 
 
 ## Licence
 
-Apache License 2.0, see [LICENSE](LICENSE).
+Apache Licence 2.0, see [LICENSE](LICENSE).
 
 ---
 

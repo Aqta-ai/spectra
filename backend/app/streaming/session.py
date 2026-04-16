@@ -1,4 +1,4 @@
-"""Spectra streaming session — bridges client WebSocket to Gemini Live API."""
+"""Spectra streaming session — bridges the client WebSocket to the Gemini Live API."""
 
 import asyncio
 import base64
@@ -70,11 +70,11 @@ FRAME_SIMILARITY_THRESHOLD = float(os.getenv("FRAME_SIMILARITY_THRESHOLD", "0.95
 
 
 def _translate_action_result(action: str, result: str) -> str:
-    """Translate raw action result codes into plain English for Gemini.
+    """Translate raw action result codes into plain English for the Gemini model.
 
-    Raw codes like "clicked_by_label_button_Sign in" cause Gemini to read
-    them aloud verbatim. This gives the model natural language so it can
-    respond naturally without reciting internal codes.
+    Raw codes such as "clicked_by_label_button_Sign in" would be read aloud verbatim.
+    This function converts them to natural language so the model can respond naturally
+    without reciting internal status codes.
     """
     if not isinstance(result, str):
         return str(result)
@@ -149,7 +149,7 @@ def _translate_action_result(action: str, result: str) -> str:
 
 
 class SpectraStreamingSession:
-    """Manages a single user session bridging WebSocket to Gemini Live API."""
+    """Manage a single user session, bridging the client WebSocket to the Gemini Live API."""
 
     def __init__(self, websocket: WebSocket, user_id: str = "default", session_id: str = None):
         self.websocket = websocket
@@ -294,17 +294,17 @@ class SpectraStreamingSession:
 
     def _calculate_frame_similarity(self, current_hash: str, previous_hash: str) -> float:
         """
-        Calculate similarity between two frame hashes.
-        
-        Uses a simple hash comparison approach. For more sophisticated similarity,
-        could use perceptual hashing or image diff algorithms.
-        
+        Calculate a similarity score between two frame hashes.
+
+        Uses hash comparison as a lightweight proxy for visual similarity.
+        Returns a value between 0.0 (completely different) and 1.0 (identical).
+
         Args:
-            current_hash: Hash of current frame
-            previous_hash: Hash of previous frame
-            
+            current_hash: Hash of the current frame
+            previous_hash: Hash of the previous frame
+
         Returns:
-            Similarity score between 0.0 (completely different) and 1.0 (identical)
+            Similarity score between 0.0 and 1.0
         """
         if not current_hash or not previous_hash:
             return 0.0

@@ -161,7 +161,7 @@ Spectra works alongside your screen reader (NVDA, JAWS, VoiceOver):
 ## Understanding Spectra's Responses
 
 ### Location Queries
-When you ask "Where am I?", Spectra analyzes your screen and tells you:
+When you ask "Where am I?", Spectra analyses your screen and tells you:
 - The website name (e.g., "You're on Google.com")
 - The application (e.g., "You're in Gmail")
 - The page context (e.g., "You're on the search results page")
@@ -304,7 +304,7 @@ For critical actions, Spectra will ask for confirmation:
 A: No, Spectra requires an internet connection for voice processing and vision analysis.
 
 **Q: Does Spectra work on mobile devices?**
-A: Currently, Spectra is optimized for desktop browsers (Chrome, Edge).
+A: Currently, Spectra is optimised for desktop browsers (Chrome, Edge).
 
 **Q: Can I use Spectra in languages other than English?**
 A: Currently, Spectra primarily supports English. Additional language support is planned.

@@ -151,7 +151,7 @@ Vision analysis failed: Network error
 
 ---
 
-### Issue 4: Commands Not Recognized
+### Issue 4: Commands Not Recognised
 
 **Symptoms:**
 - Spectra doesn't understand your commands
@@ -307,7 +307,7 @@ If consistently slow:
 
 **Make Window Visible:**
 1. Ensure browser window is in foreground
-2. Maximize window if minimized
+2. Maximise window if minimised
 3. Make sure content is actually visible
 
 **Try Fresh Analysis:**
@@ -445,7 +445,7 @@ If using screen reader:
 **Fix:** Check specific error message above for solutions
 
 ### "I don't understand that command"
-**Meaning:** Command not recognized or ambiguous
+**Meaning:** Command not recognised or ambiguous
 **Fix:** Try command variation or be more specific
 
 ### "I cannot find that element"
@@ -541,10 +541,10 @@ If using screen reader:
 
 ### Issue: Dynamic Content
 **Problem:** Rapidly changing content may confuse vision system
-**Workaround:** Wait for content to stabilize before commanding
+**Workaround:** Wait for content to stabilise before commanding
 
 ### Issue: Popup Dialogs
-**Problem:** Popups may not be immediately recognized
+**Problem:** Popups may not be immediately recognised
 **Workaround:** Say "What do you see?" to force fresh analysis
 
 ### Issue: Video Players

@@ -31,7 +31,7 @@
 
 ### 1. Create Extension Package
 ```bash
-cd /Users/anyaparanya/Documents/GitHub/spectra/extension
+cd extension
 # Remove any unnecessary files
 rm -f *.md .DS_Store
 # Create zip

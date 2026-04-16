@@ -107,7 +107,7 @@ _THINKING_PATTERN_STRINGS: list = list(_NARRATION_SUBSTRINGS)
 
 
 def is_location_query(text: str) -> bool:
-    """Check if query is asking about digital location (not physical)."""
+    """Return True if the query is asking about the user's current digital location."""
     location_triggers = [
         "where am i",
         "what site am i on",
@@ -126,7 +126,7 @@ def is_location_query(text: str) -> bool:
 @track_performance("remove_narration")
 def remove_narration(text: Optional[str]) -> str:
     """
-    Remove thinking/process narration from responses.
+    Remove internal thinking and process narration from model responses.
 
     Fully ReDoS-safe: no unbounded regex on sentence bodies.
     Uses plain string operations only:
@@ -187,10 +187,10 @@ def remove_narration(text: Optional[str]) -> str:
 
 
 def _is_narration(lower: str) -> bool:
-    """Return True if the lowercased sentence should be dropped.
+    """Return True if the lowercased sentence should be dropped as internal narration.
 
     Only matches sentence *starts* — never arbitrary substrings — so
-    normal conversational responses like "I'm seeing three emails" survive.
+    normal conversational responses such as "I'm seeing three emails" are preserved.
     """
     # Check FORBIDDEN_SENTENCE_STARTS (imported from config)
     if any(lower.startswith(bad) for bad in FORBIDDEN_SENTENCE_STARTS):
@@ -201,7 +201,7 @@ def _is_narration(lower: str) -> bool:
 
 @track_performance("classify_vision_error")
 def classify_vision_error(error_message: str) -> VisionErrorResult:
-    """Classify a vision error into categories for better handling."""
+    """Classify a vision error into a named category to guide error handling and retry logic."""
     error_lower = error_message.lower()
     
     for error_type, patterns in VISION_ERROR_TYPES.items():
@@ -237,7 +237,7 @@ def classify_vision_error(error_message: str) -> VisionErrorResult:
 
 
 def _get_user_friendly_message(error_type: str, original_error: str) -> str:
-    """Get user-friendly error message based on error type."""
+    """Return a user-facing error message appropriate for the given error type."""
     messages = {
         'authentication': "Vision analysis failed: Invalid API key. Check GOOGLE_API_KEY in backend/.env",
         'rate_limit': "Vision analysis failed: Rate limit exceeded. Please wait a moment and try again.",
@@ -250,7 +250,7 @@ def _get_user_friendly_message(error_type: str, original_error: str) -> str:
 
 
 def validate_system_instruction_response(text: str) -> tuple[bool, list[str]]:
-    """Validate that a response follows system instruction rules.
+    """Validate that a response complies with system instruction rules.
     
     Returns:
         (is_valid, list_of_violations)
@@ -283,13 +283,13 @@ def validate_system_instruction_response(text: str) -> tuple[bool, list[str]]:
 
 
 def requires_confirmation(text: str) -> bool:
-    """Check if a command requires destructive action confirmation."""
+    """Return True if the command contains keywords that indicate a potentially destructive action."""
     text_lower = text.lower()
     return any(keyword in text_lower for keyword in DESTRUCTIVE_KEYWORDS)
 
 
 def get_confirmation_reminder(text: str) -> str:
-    """Get a confirmation reminder for destructive actions."""
+    """Return a confirmation reminder string if the command requires destructive action confirmation."""
     if requires_confirmation(text):
         return "Remember: this may be destructive, call confirm_action first."
     return ""
@@ -538,7 +538,7 @@ SPECTRA_TOOLS = [
 
 
 class SpectraState:
-    """Minimal state machine to track context and avoid redundant operations."""
+    """Minimal state machine to track session context and avoid redundant operations."""
     
     def __init__(self):
         self.current_app = None        # "gmail", "reddit", "chrome", etc.
@@ -550,11 +550,11 @@ class SpectraState:
         self.interaction_log = []      # for fine-tuning dataset
     
     def needs_fresh_screen(self, max_age_seconds: int = SCREEN_CONTEXT_MAX_AGE_SECONDS) -> bool:
-        """Returns True if screen context is stale."""
+        """Return True if the cached screen context has exceeded its maximum age."""
         return (time.time() - self.last_screen_time) > max_age_seconds
     
     def inject_context_hint(self, user_input: str) -> str:
-        """Prepend context to user input so model doesn't have to re-infer."""
+        """Prepend session context to user input so the model does not need to re-infer state."""
         hint = ""
         if self.current_app:
             hint += f"[Context: currently in {self.current_app}] "
@@ -565,7 +565,7 @@ class SpectraState:
         return hint + user_input
     
     def update_from_screen_description(self, description: str):
-        """Extract app context from screen description."""
+        """Extract and store the current application context from a screen description."""
         desc_lower = description.lower()
         
         # Detect app type
@@ -585,7 +585,7 @@ class SpectraState:
         self.last_screen_time = time.time()
     
     def record_action(self, action_name: str, params: dict):
-        """Record action for undo/redo and logging."""
+        """Record the most recent action and its coordinates for undo/redo and logging."""
         self.last_action = action_name
         if 'x' in params and 'y' in params:
             self.last_coordinates = (params['x'], params['y'])
@@ -595,14 +595,14 @@ class SpectraState:
 
 def postprocess_spectra_reply(raw_text: str) -> str:
     """
-    Mandatory postprocessing for ALL Spectra responses.
-    
-    This is the FINAL enforcement layer that ensures responses are clean,
-    direct, and follow system instruction rules.
-    
+    Apply mandatory post-processing to all Spectra responses.
+
+    This is the final enforcement layer that ensures responses are clean,
+    direct, and compliant with system instruction rules.
+
     Args:
         raw_text: Raw model output
-        
+
     Returns:
         Cleaned, validated, and compliant response text
     """
@@ -631,14 +631,14 @@ def postprocess_spectra_reply(raw_text: str) -> str:
 
 def process_model_response(text: str) -> str:
     """
-    Process model response: remove narration and validate compliance.
-    
-    DEPRECATED: Use postprocess_spectra_reply instead.
-    Kept for backward compatibility.
-    
+    Process a model response by removing narration and validating compliance.
+
+    Deprecated: use postprocess_spectra_reply instead.
+    Retained for backward compatibility.
+
     Args:
         text: Raw model response text
-        
+
     Returns:
         Cleaned and validated response text
     """
@@ -655,16 +655,16 @@ def log_interaction(
     violations: list[str] | None = None
 ) -> None:
     """
-    Log every interaction for future fine-tuning dataset.
-    
-    Creates a JSONL file with interaction traces that can be used to fine-tune
-    an open-source model to replicate Spectra's behavior.
-    
+    Log an interaction to a JSONL file for use in future fine-tuning datasets.
+
+    Each entry records the user input, tool calls, model response, and any
+    system instruction violations, enabling offline analysis and model improvement.
+
     Args:
         user_input: The user's input text
         tool_calls: List of tool calls made by the model
         model_response: The model's response text
-        violations: List of system instruction violations (if any)
+        violations: List of system instruction violations, if any
     """
     if not LOG_INTERACTIONS:
         return

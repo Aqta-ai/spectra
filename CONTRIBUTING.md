@@ -143,7 +143,7 @@ spectra/
 - **Browser extension reliability** — More accurate click targeting, better error handling
 - **Error handling** — Graceful failures with clear user feedback
 - **Multi-language support** — Test and improve non-English voice commands
-- **Performance optimization** — Reduce latency in voice-to-action pipeline
+- **Performance optimisation** — Reduce latency in voice-to-action pipeline
 
 ### Medium Priority
 - **Mobile accessibility** — Touch + voice on mobile browsers
@@ -155,7 +155,7 @@ spectra/
 
 ### Nice to Have
 - **Additional themes** — High contrast, dark mode variants
-- **Keyboard shortcut customization**
+- **Keyboard shortcut customisation**
 - **Session history** — Review past interactions
 - **Screenshot preview** — Show what Spectra sees
 - **Browser extension for Firefox/Edge**
@@ -221,7 +221,7 @@ All UI contributions must:
 - [ ] Keyboard shortcuts (Q, W, Escape)
 - [ ] Screen reader announces correctly
 - [ ] Tab navigation works
-- [ ] Overlay page loads and analyzes URLs
+- [ ] Overlay page loads and analyses URLs
 - [ ] Extension is detected and functional
 
 ### Backend Tests
@@ -260,9 +260,9 @@ npm run test:a11y
 When contributing, keep performance in mind:
 
 - **Backend:** Keep API responses under 2 seconds
-- **Frontend:** Optimize bundle size, lazy load components
+- **Frontend:** Optimise bundle size, lazy load components
 - **Overlay:** Limit HTML processing to 20KB, cache results
-- **Audio:** Use efficient PCM streaming, minimize latency
+- **Audio:** Use efficient PCM streaming, minimise latency
 - **Screen capture:** Keep at 2 FPS, use adaptive quality
 
 ---
@@ -313,16 +313,16 @@ Contributors are:
 
 ---
 
-## 📄 License
+## 📄 Licence
 
-By contributing, you agree that your contributions will be licensed under the [Apache License 2.0](LICENSE).
+By contributing, you agree that your contributions will be licenced under the [Apache Licence 2.0](LICENSE).
 
 ---
 
 ## 💡 Tips for First-Time Contributors
 
 - Start with documentation improvements or bug fixes
-- Look for issues labeled `good first issue` or `help wanted`
+- Look for issues labelled `good first issue` or `help wanted`
 - Ask questions if anything is unclear
 - Test your changes thoroughly before submitting
 - Keep PRs focused on a single change

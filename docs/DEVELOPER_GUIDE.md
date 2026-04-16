@@ -128,7 +128,7 @@ The `SpectraErrorHandler` class provides comprehensive error handling with detai
 **Location**: `backend/app/error_handler.py`
 
 **Key Features**:
-- Structured error categorization
+- Structured error categorisation
 - Detailed logging with context information
 - User-friendly error messages with debugging hints
 - Retry logic coordination
@@ -421,10 +421,10 @@ SpectraErrorHandler()
 **Methods**:
 
 ##### `categorize_error(error: Exception) -> ErrorCategory`
-Categorize an error based on its type and message.
+Categorise an error based on its type and message.
 
 **Parameters**:
-- `error`: The exception to categorize
+- `error`: The exception to categorise
 
 **Returns**: ErrorCategory enum value
 
@@ -1105,7 +1105,7 @@ When debugging vision system issues, follow this checklist:
 
 ### Setting Up Performance Monitoring
 
-#### 1. Initialize Performance Monitor
+#### 1. Initialise Performance Monitor
 
 ```python
 # In backend/app/main.py

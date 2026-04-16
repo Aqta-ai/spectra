@@ -1,9 +1,9 @@
 /**
  * Spectra Bridge — Background Service Worker
- * Routes action messages from Spectra page to the active tab for execution.
+ * Routes action messages from the Spectra page to the active tab for execution.
  * Supports Chrome, Arc, and Comet browsers.
  *
- * Improvements: better retry logic, tab caching, action queuing, error recovery.
+ * Includes retry logic, tab caching, action queuing, and error recovery.
  */
 
 const SPECTRA_ORIGINS = [

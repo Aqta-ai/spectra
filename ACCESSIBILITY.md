@@ -136,9 +136,9 @@ Designed for VoiceOver (macOS), NVDA and JAWS (Windows), Orca (Linux), TalkBack 
 |---------|--------|
 | **High-contrast focus ring** | Yellow `#facc15`, 3px, clearly visible on dark `#0f172a` background |
 | **Three distinct orb states** | Idle (purple breathe), Listening (green glow), Speaking (violet glow) |
-| **Waveform visualization** | 5 animated bars during listening, visual confirmation mic is active |
-| **Connection state colors** | Green = connected, amber pulse = reconnecting, red = failed, dim = disconnected |
-| **Status indicators** | Individual colored dots + text for mic, screen, and connection |
+| **Waveform visualisation** | 5 animated bars during listening, visual confirmation mic is active |
+| **Connection state colours** | Green = connected, amber pulse = reconnecting, red = failed, dim = disconnected |
+| **Status indicators** | Individual coloured dots + text for mic, screen, and connection |
 | **44px touch targets** | `@media (pointer: coarse)` sets `min-height: 44px` on all interactive elements (WCAG 2.5.5) |
 | **Pinch-to-zoom** | `userScalable: true`, `maximumScale: 5` — allows up to 5x zoom |
 | **Safe area insets** | `env(safe-area-inset-*)` padding for notched devices in PWA mode |
@@ -208,7 +208,7 @@ The `/overlay` page includes a client-side accessibility heuristic checker:
 - Checks for missing H1 heading
 - Dedicated "Accessibility hints" tab with pass/fail indicators
 
-Visit [spectra.aqta.ai/overlay](https://spectra.aqta.ai/overlay) or `localhost:3000/overlay` to analyze any webpage.
+Visit [spectra.aqta.ai/overlay](https://spectra.aqta.ai/overlay) or `localhost:3000/overlay` to analyse any webpage.
 
 ---
 
@@ -233,7 +233,7 @@ All features listed above are **implemented in code** and can be verified by ins
 | Destructive action confirmation | ✅ | `system_instruction.py` + `core_instruction.txt` |
 | Extension a11y-aware targeting | ✅ | `content.js` |
 | Built-in accessibility auditor | ✅ | `overlay/page.tsx` |
-| Overlay performance optimizations | ✅ | `overlay.py` (20KB HTML, 1hr cache, top 50 elements) |
+| Overlay performance optimisations | ✅ | `overlay.py` (20KB HTML, 1hr cache, top 50 elements) |
 | VoiceOver real-user test | 📋 Planned | Community testers welcome |
 | NVDA real-user test | 📋 Planned | Community testers welcome |
 | JAWS real-user test | 📋 Planned | Community testers welcome |

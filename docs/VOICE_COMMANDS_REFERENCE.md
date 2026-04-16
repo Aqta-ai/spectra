@@ -420,7 +420,7 @@ You: "Open that" ← Spectra opens the about page
 
 ### Descriptive Targeting
 
-**By Color**:
+**By Colour**:
 ```
 ✅ "Click the red button"
 ✅ "Select the blue link"
@@ -531,7 +531,7 @@ You: "Open that" ← Spectra opens the about page
 1. Try a command variation
 2. Be more specific about the element
 3. Ask Spectra to describe what she sees first
-4. Use position or color descriptors
+4. Use position or colour descriptors
 
 **Example**:
 ```
@@ -610,7 +610,7 @@ Both work! ✅
 1. "Describe the screen" - See what Spectra sees
 2. "What buttons are available?" - List options
 3. "Scroll down" - Element might be off-screen
-4. Use more specific description - Color, position, text
+4. Use more specific description - Colour, position, text
 
 ### If Action Doesn't Execute
 
@@ -682,4 +682,4 @@ Both work! ✅
 
 ---
 
-**Remember**: Spectra understands natural language. Don't memorize commands - just talk naturally and use variations that feel comfortable to you!
+**Remember**: Spectra understands natural language. Don't memorise commands - just talk naturally and use variations that feel comfortable to you!
