@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useMemo, useEffect } from "react";
+import Link from "next/link";
 import {
   Eye,
   Loader2,
@@ -254,9 +255,9 @@ export default function OverlayPage() {
       >
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <a href="/" className="flex items-center gap-2 opacity-60 hover:opacity-100 transition-opacity">
+            <Link href="/" className="flex items-center gap-2 opacity-60 hover:opacity-100 transition-opacity">
               <img src="/icon512.png" alt="Spectra" className="w-6 h-6" />
-            </a>
+            </Link>
             <span style={{ color: "rgba(255,255,255,0.2)" }}>/</span>
             <div>
               <h1
@@ -604,9 +605,9 @@ export default function OverlayPage() {
           />
         </a>
         <div>
-          <a href="/" className="hover:text-white/80 transition-colors">
+          <Link href="/" className="hover:text-white/80 transition-colors">
             Spectra
-          </a>
+          </Link>
           {" · "}
           <a href="/guide" className="hover:text-white/80 transition-colors">
             Guide

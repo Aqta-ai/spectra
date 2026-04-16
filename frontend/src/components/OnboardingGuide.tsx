@@ -146,7 +146,7 @@ export function OnboardingGuide({
               Almost there!
             </h3>
             <p id="onboarding-description" className="text-white/80 text-sm mb-4">
-              Now let's share your screen so I can help you navigate.
+              Now let&apos;s share your screen so I can help you navigate.
             </p>
             <div className="bg-gradient-to-r from-spectra-primary/10 to-spectra-secondary/10 rounded-xl p-4 border border-spectra-primary/20">
               <p className="text-sm font-medium text-white mb-2 flex items-center gap-2">
@@ -154,7 +154,7 @@ export function OnboardingGuide({
                 Press W to share your screen
               </p>
               <p className="text-xs text-white/70">
-                This allows me to see what's on your screen so I can help you click, scroll, and navigate.
+                This allows me to see what&apos;s on your screen so I can help you click, scroll, and navigate.
               </p>
             </div>
           </div>
@@ -172,10 +172,10 @@ export function OnboardingGuide({
           </div>
           <div className="flex-1 pr-6">
             <h3 className="text-lg font-semibold text-white mb-1">
-              Perfect! You're all set
+              Perfect! You&apos;re all set
             </h3>
             <p className="text-sm text-white/80">
-              I'm ready to help. Just say "Hey Spectra" or press Q to start.
+              I&apos;m ready to help. Just say &ldquo;Hey Spectra&rdquo; or press Q to start.
             </p>
           </div>
         </div>
