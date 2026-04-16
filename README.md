@@ -19,6 +19,16 @@ Spectra is a real-time AI agent that understands your screen, highlights what ma
 [![Python](https://img.shields.io/badge/PYTHON-FastAPI-3B82F6?style=for-the-badge&logo=python&logoColor=white)](https://fastapi.tiangolo.com)
 [![Next.js](https://img.shields.io/badge/NEXT.JS-14-111827?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org)
 
+---
+
+## 👩‍💻 Author & Hackathon Submission
+
+**Built entirely by [Anya Chueayen](https://github.com/anyapages)** ([@anyapages](https://github.com/anyapages))  
+Aqta Technologies Ltd, Dublin, Ireland
+
+Submitted to **#GeminiLiveAgentChallenge** 🏆
+
+*Development assisted by Claude Code CLI (Anthropic's developer tool). All code, design, and architecture by Anya.*
 
 ---
 
