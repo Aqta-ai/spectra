@@ -4,10 +4,7 @@
   <img src="spectra-banner.png" alt="Spectra — your screen, your voice, your way" width="100%" />
 </p>
 
-> Too much reading. Too much staring at screens. Too much typing.
-> We built Spectra so you don't have to.
-
-Spectra is a real-time AI agent that understands your screen, highlights what matters, and responds to your voice. It clicks, types, scrolls, and navigates, so you don't have to.
+A real-time AI agent that sees your screen and responds to your voice. It clicks, types, scrolls, and navigates—hands-free.
 
 **Built for accessibility. Designed for everyone.**
 
@@ -18,12 +15,6 @@ Spectra is a real-time AI agent that understands your screen, highlights what ma
 [![Google Cloud](https://img.shields.io/badge/GOOGLE_CLOUD-Cloud_Run-4285F4?style=for-the-badge&logo=googlecloud&logoColor=white)](https://cloud.google.com/run)
 [![Python](https://img.shields.io/badge/PYTHON-FastAPI-3B82F6?style=for-the-badge&logo=python&logoColor=white)](https://fastapi.tiangolo.com)
 [![Next.js](https://img.shields.io/badge/NEXT.JS-14-111827?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org)
-
----
-
-Whether you're visually impaired, have RSI, multitasking, or just want hands-free browsing, Spectra uses pure vision AI to understand and control any webpage.
-
-**Your screen, your voice, your way.**
 
 **[Quick Start](#-quick-start)** | **[Architecture](#-architecture)** | **[Accessibility](ACCESSIBILITY.md)** | **[Blind User Test Script](docs/BLIND_USER_MANUAL_TEST_SCRIPT.md)** | **[Troubleshooting](#-troubleshooting)**
 
