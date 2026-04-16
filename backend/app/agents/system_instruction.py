@@ -186,6 +186,40 @@ CRITICAL RULES FOR BOOKING SITES:
 - If a dropdown didn't open after typing: try clicking the field again, then re-type
 - The screen IS shared throughout — NEVER ask to share screen again during a booking flow
 
+━━ MULTI-SITE PRICE COMPARISON (finding cheapest flights) ━━
+When the user asks to "find the cheapest flight" or "compare prices", search across multiple booking sites automatically:
+
+WORKFLOW:
+1. Search on Google Flights first (fastest, good overview)
+   → Read top 3-5 flight options with prices aloud
+   → Remember the cheapest price: "Google Flights: Ryanair €79, Aer Lingus €95"
+2. Navigate to Skyscanner, repeat search with same origin/destination/dates
+   → Read top 3 options
+   → Compare: "Skyscanner shows: Ryanair €82, Wizz Air €74"
+3. Check one more site (Kayak or direct airline site like Ryanair.com if mentioned)
+   → Read prices
+4. RECOMMEND: "I checked three sites. Best price is Wizz Air €74 on Skyscanner, followed by Ryanair €79 on Google Flights. Shall I book the Wizz Air flight?"
+
+PRICE MEMORY:
+- Keep track of prices as you search across sites
+- Always mention the SOURCE: "€79 on Google Flights" not just "€79"
+- Compare and recommend the cheapest at the end
+- If prices are very close (within €5), mention both options
+
+MULTI-CITY ROUTING:
+For complex trips like "Dublin → London → Paris":
+1. Break into legs: "I'll search Dublin to London, then London to Paris"
+2. Search each leg separately (most booking sites don't handle multi-city well)
+3. Sum the total: "Dublin to London €79, London to Paris €45, total €124"
+4. OPTIONAL: Check if a direct Dublin to Paris route is cheaper as alternative
+
+ROUTE OPTIMISATION:
+- If user asks "cheapest way to get from A to B", consider:
+  - Direct flights
+  - Flights with one stop (sometimes cheaper)
+  - Nearby airports (e.g. Dublin vs Cork, London Heathrow vs Gatwick vs Stansted)
+- Read all options with totals: "Direct is €120, via Amsterdam €89 — I recommend the Amsterdam route"
+
 ━━ CLICK SOMETHING (user said "click X", "open X", "go to X", "go to [tab/section]") ━━
 DON'T CLICK TOO FAST / CLICK THE RIGHT LINK: When the page just loaded or there are multiple links (e.g. main article, related stories, "war" link, sidebar), call describe_screen and read the actual headlines and link text. Click the link that matches what the user asked for — the main article or the headline they mean, NOT a different topic (e.g. do not click a link about "the war" when the main content is another story). Use the exact headline or an unambiguous description. Say aloud what you're clicking so the user knows (e.g. "Clicking the Ethiopia smart police stations article." then after result: "Done — opened that article.").
 
@@ -619,6 +653,38 @@ User: "Go to Wikipedia and tell me about the Eiffel Tower"
 → "Found flights from Dublin to London. Ryanair at 6am for 29 euros, Aer Lingus at 8am for 49 euros. Want me to pick one?"
 
 KEY: wait_for_content after EVERY combobox type — never skip it. The dropdown needs time to appear.
+""",
+    "price_comparison": """User: "Find me the cheapest flight from Dublin to Paris next Friday"
+→ navigate("https://www.google.com/travel/flights")
+→ [fill form: Dublin → Paris, next Friday]
+→ wait_for_content(reason="results", wait_ms=3000)
+→ describe_screen("full")
+→ "On Google Flights I can see: Ryanair €79 at 7am, Aer Lingus €95 at 9am, Air France €120 at 11am. Let me check other sites."
+→ navigate("https://www.skyscanner.net")
+→ [fill same search]
+→ wait_for_content(reason="results", wait_ms=3000)
+→ describe_screen("full")
+→ "Skyscanner shows: Ryanair €79, Vueling €72, EasyJet €84."
+→ navigate("https://www.kayak.co.uk")
+→ [fill same search]
+→ wait_for_content(reason="results", wait_ms=3000)
+→ "Kayak shows: Vueling €72, Ryanair €82, EasyJet €85."
+→ "Right, I've checked three sites. Best price is Vueling at €72 on both Skyscanner and Kayak. Ryanair is €79 on Google Flights. Shall I book the Vueling flight?"
+
+KEY: Always state the source with the price. Track prices across sites. Recommend cheapest at the end.
+""",
+    "multi_city_route": """User: "I need to go Dublin to London to Paris, cheapest way"
+→ "I'll search Dublin to London first, then London to Paris."
+→ [Search Dublin → London across Google Flights, Skyscanner]
+→ "Dublin to London: Best is Ryanair €79."
+→ [Search London → Paris across same sites]
+→ "London to Paris: Best is EasyJet €45."
+→ "Total for the two legs: €124. Want me to also check if a direct Dublin to Paris flight is cheaper?"
+→ [User: "Yes"]
+→ [Search Dublin → Paris direct]
+→ "Direct Dublin to Paris is €110 with Aer Lingus. That's €14 cheaper than going via London. I recommend the direct flight."
+
+KEY: Break multi-city into legs. Sum totals. Offer alternatives. Compare end-to-end.
 """,
     "bad_example": """NEVER DO THIS:
 "I've determined the screen description revealed the Google logo. I'm seeing sponsored listings. I've just refined the prompt's core objective. My immediate task involves parsing the screen description."

@@ -248,6 +248,10 @@ class SpectraStreamingSession:
         # Proactive assistance - detect when user needs help
         self._last_user_input_time: float = time.time()
         self._proactive_help_offered: bool = False
+
+        # Flight booking price memory - track prices across sites for comparison
+        self._flight_prices: list[dict] = []  # [{"site": "Google Flights", "airline": "Ryanair", "price": 79, "currency": "EUR", "route": "DUB-LHR", "time": "6am", "timestamp": ...}]
+        self._current_search_route: str = ""  # e.g., "Dublin to London"
         self._stuck_threshold: float = 30.0  # Offer help after 30s of inactivity
         
         # Interruption handling - allow user to interrupt Spectra
@@ -1214,6 +1218,58 @@ class SpectraStreamingSession:
                 logger.error(f"Failed to parse shortcut: {e}")
         
         return None
+
+    def _save_flight_price(self, site: str, airline: str, price: float, currency: str = "EUR",
+                          route: str = "", flight_time: str = "", details: str = ""):
+        """Save a flight price for comparison across sites."""
+        import time as time_module
+        price_entry = {
+            "site": site,
+            "airline": airline,
+            "price": price,
+            "currency": currency,
+            "route": route or self._current_search_route,
+            "time": flight_time,
+            "details": details,
+            "timestamp": time_module.time()
+        }
+        self._flight_prices.append(price_entry)
+        logger.info(f"Saved flight price: {airline} {currency}{price} on {site}")
+
+    def _get_cheapest_flight(self) -> Optional[dict]:
+        """Get the cheapest flight from tracked prices."""
+        if not self._flight_prices:
+            return None
+        return min(self._flight_prices, key=lambda x: x["price"])
+
+    def _compare_flight_prices(self) -> str:
+        """Generate a comparison summary of all tracked flight prices."""
+        if not self._flight_prices:
+            return "No flight prices tracked yet."
+
+        # Sort by price
+        sorted_prices = sorted(self._flight_prices, key=lambda x: x["price"])
+
+        # Build comparison text
+        lines = []
+        for i, flight in enumerate(sorted_prices, 1):
+            site = flight["site"]
+            airline = flight["airline"]
+            price = flight["price"]
+            currency = flight["currency"]
+            time_str = flight.get("time", "")
+            time_part = f" at {time_str}" if time_str else ""
+            lines.append(f"{i}. {airline}: {currency}{price}{time_part} (via {site})")
+
+        cheapest = sorted_prices[0]
+        recommendation = f"\nRecommendation: {cheapest['airline']} at {cheapest['currency']}{cheapest['price']} on {cheapest['site']}"
+
+        return "\n".join(lines) + recommendation
+
+    def _clear_flight_prices(self):
+        """Clear tracked flight prices for a new search."""
+        self._flight_prices.clear()
+        logger.info("Cleared flight price memory")
 
     async def _handle_server_tool(self, tool_name: str, args: dict) -> str:
         """Execute server-side tools with caching and parallel vision."""
