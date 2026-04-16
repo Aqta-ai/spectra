@@ -21,17 +21,6 @@ Spectra is a real-time AI agent that understands your screen, highlights what ma
 
 ---
 
-## 👩‍💻 Author & Hackathon Submission
-
-**Built entirely by [Anya Chueayen](https://github.com/anyapages)** ([@anyapages](https://github.com/anyapages))  
-Aqta Technologies Ltd, Dublin, Ireland
-
-Submitted to **#GeminiLiveAgentChallenge** 🏆
-
-*Development assisted by Claude Code CLI (Anthropic's developer tool). All code, design, and architecture by Anya.*
-
----
-
 Whether you're visually impaired, have RSI, multitasking, or just want hands-free browsing, Spectra uses pure vision AI to understand and control any webpage.
 
 **Your screen, your voice, your way.**
@@ -166,49 +155,6 @@ Spectra is split into a **Next.js frontend**, a **FastAPI backend** connected to
 <p align="centre">
   <img src="spectra-architecture.png" alt="Spectra system architecture" width="100%" />
 </p>
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        USER                                     │
-│    Voice In   Voice Out   Keyboard                             │
-│   Wake word: "Hey Spectra" | Shortcuts: Q / W / Escape          │
-└──────────────┬──────────────────────────┬───────────────────────┘
-               │                          │
-               ▼                          ▲
-┌──────────────────────────────────────────────────────────────────┐
-│                SPECTRA FRONTEND (Next.js + React)                │
-│  • Wake word detection (Web Speech API)                          │
-│  • Screen capture (MediaStream → JPEG @ 2 FPS)                  │
-│  • Audio streaming (PCM 16kHz ↔ WebSocket)                       │
-│  • Action executor (click, type, scroll, keys)                   │
-│  • Onboarding guide for new users                                │
-└───────────────────┬───────────────────────────────┬──────────────┘
-                    │ WebSocket                     │ Extension API
-                    ▼                               ▼
-┌──────────────────────────────────────────────────────────────────┐
-│             SPECTRA BACKEND (FastAPI on Cloud Run)                │
-│  • WebSocket bridge: Client ↔ Gemini Live API                    │
-│  • Session manager for bidiGenerateContent                       │
-│  • System instructions + tool declarations                       │
-│  • Action result translation (raw → natural language)            │
-│  • Narration filter (suppresses internal monologue)              │
-│                                                                  │
-│  GEMINI LIVE API (gemini-2.5-flash, native audio)                │
-│  • Real-time bidirectional audio streaming (Aoede voice)          │
-│  • Vision over live screenshots                                  │
-│  • Function calling for UI actions                               │
-│  • Voice Activity Detection + barge-in                           │
-└──────────────────────────────────────────────────────────────────┘
-                                │
-                                ▼
-┌──────────────────────────────────────────────────────────────────┐
-│              SPECTRA BRIDGE (Chrome Extension, MV3)              │
-│  • content.js, injected into every tab; executes actions         │
-│  • background.js, routes messages to the active tab              │
-│  • HiDPI-aware coordinate scaling                                │
-│  • Purple highlight overlay for click feedback                   │
-└──────────────────────────────────────────────────────────────────┘
-```
 
 **Agent tools:**
 
@@ -642,16 +588,12 @@ Apache Licence 2.0, see [LICENSE](LICENSE).
 -  **Web Speech API**, browser-native wake word detection
 -  **Open Source Community**, inspiration from accessibility tools and AI agents
 
-Built for **#GeminiLiveAgentChallenge**
-
----
-
-## Maintainer
-
-**Anya Chueayen**, Aqta Technologies Ltd, Dublin, Ireland
-
 ---
 
 ⭐ **Star this repo if you find it helpful!**
 
 💜 **Share with others who might benefit from accessible tools.**
+
+---
+
+**Built by [Anya Chueayen](https://github.com/anyapages)** · Aqta Technologies Ltd, Dublin, Ireland
