@@ -18,6 +18,7 @@ from urllib.parse import parse_qs
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 
 from app.overlay import router as overlay_router
 from app.plugins import load_plugins, registry
@@ -82,9 +83,14 @@ async def system_info():
     }
 
 
+class ProviderRequest(BaseModel):
+    new_provider: str
+
+
 @app.post("/api/switch-provider")
-async def switch_provider(new_provider: str):
+async def switch_provider(req: ProviderRequest):
     """Switch between Gemini and Ollama providers (updates .env and restarts backend)."""
+    new_provider = req.new_provider
     if new_provider not in ("gemini", "ollama"):
         return {"error": "Invalid provider. Use 'gemini' or 'ollama'.", "status": 400}
 
