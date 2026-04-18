@@ -5,7 +5,6 @@ import { useSpectraSocket } from "@/hooks/useSpectraSocket";
 import { useAudioStream } from "@/hooks/useAudioStream";
 import { useScreenCapture } from "@/hooks/useScreenCapture";
 import { useVoiceActivation } from "@/hooks/useVoiceActivation";
-import { useOllamaAudio } from "@/hooks/useOllamaAudio";
 import { useOnboarding } from "@/hooks/useOnboarding";
 import { useFeedback } from "@/hooks/useFeedback";
 import { ActionExecutor } from "@/lib/actionExecutor";
@@ -153,7 +152,6 @@ export default function Home() {
   const [politeAnnouncement, setPoliteAnnouncement] = useState("");
   const [extensionReady, setExtensionReady] = useState(false);
   const [showExtensionBanner, setShowExtensionBanner] = useState(false);
-  const [offlineMode, setOfflineMode] = useState(false);
 
   // Typing effect for demo commands
   const DEMO_COMMANDS = [
@@ -221,7 +219,6 @@ export default function Home() {
   const audioContextWarmedRef = useRef(false);
   const geminiReconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const unmuteSafetyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const speakResponseRef = useRef<(text: string) => void>(() => {});
 
   // Multimodal Feedback System - 10X User Experience
   const feedbackSystemRef = useRef(getFeedbackSystem({
@@ -249,20 +246,6 @@ export default function Home() {
     // Delay banner by 2s — extension pings back within ~500ms if installed,
     // so showing it immediately causes a visible flicker on every load.
     extensionBannerTimerRef.current = setTimeout(() => setShowExtensionBanner(true), 2000);
-
-    // Check localStorage for user's preferred mode
-    const savedMode = localStorage.getItem('spectra_mode');
-    if (savedMode === 'offline') {
-      setOfflineMode(true);
-      console.log("[Spectra] Using offline mode (from localStorage)");
-    } else if (savedMode === 'gemini') {
-      setOfflineMode(false);
-      console.log("[Spectra] Using Gemini Live (from localStorage)");
-    } else {
-      // Default to Gemini Live (primary mode for hackathon)
-      setOfflineMode(false);
-      console.log("[Spectra] Defaulting to Gemini Live mode");
-    }
 
     return () => {
       clearInterval(id);
@@ -426,12 +409,6 @@ export default function Home() {
             return next.length > MAX_MESSAGES ? next.slice(-MAX_MESSAGES) : next;
           });
           announcePolite(finalText);
-
-          // For offline mode, speak the response using Web Speech API
-          if (offlineMode) {
-            console.log("[Spectra] Calling speakResponse for offline mode");
-            speakResponseRef.current(finalText);
-          }
         }
         setCurrentResponse("");
       } else {
@@ -496,53 +473,12 @@ export default function Home() {
     fps: 3,
   });
 
-  // Disable wake word detection in offline mode (uses same Web Speech API)
+  // Wake word detection for "Hey Spectra"
   useVoiceActivation({
-    enabled: !isActive && !offlineMode,
+    enabled: !isActive,
     wakeWords: ["hey spectra", "start spectra", "ok spectra", "spectra"],
     onActivate: () => { handleStart(); },
   });
-
-  // Ollama audio pipeline (voice input/output for offline mode)
-  const { startListening: startOllamaListening, speakResponse } = useOllamaAudio({
-    enabled: offlineMode && isConnected,
-    offlineMode,
-    isActive,
-    onTranscript: (text) => {
-      // For offline mode, we handle transcripts from Web Speech API
-      const trimmed = text.trim();
-      if (!trimmed || trimmed.length <= 1) return;
-      setCurrentTranscript(trimmed);
-    },
-    onSendText: (text) => {
-      // User finished speaking - send text to Ollama backend
-      if (text.trim()) {
-        sendText(text);
-        setMessages((prev) => {
-          const next = [...prev, { role: "user" as const, content: text, timestamp: Date.now() }];
-          return next.length > MAX_MESSAGES ? next.slice(-MAX_MESSAGES) : next;
-        });
-        setCurrentTranscript("");
-        setIsThinking(true);
-        announcePolite(`You said: ${text}. Spectra is thinking…`);
-      }
-    },
-    onResponseStart: () => {
-      setIsSpeaking(true);
-    },
-    onResponseEnd: () => {
-      setIsSpeaking(false);
-      // After response finishes, resume listening if still active
-      if (offlineMode && isActive) {
-        setTimeout(() => startOllamaListening(), 500);
-      }
-    },
-  });
-
-  // Keep speakResponse ref fresh for use in onTurnComplete callback
-  useEffect(() => {
-    speakResponseRef.current = speakResponse;
-  }, [speakResponse]);
 
   const handleFullStop = useCallback(() => {
     setIsActive(false);
@@ -739,48 +675,6 @@ export default function Home() {
               )}
             </div>
 
-            {/* Provider toggle switch */}
-            <div className="flex items-center gap-3 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10">
-              <span className="text-xs font-medium text-white/70">Provider:</span>
-              <div className="flex items-center gap-1 bg-white/10 rounded-md p-0.5">
-                {/* Gemini Live button */}
-                <button
-                  onClick={() => {
-                    if (offlineMode) {
-                      setOfflineMode(false);
-                      localStorage.setItem('spectra_mode', 'gemini');
-                      window.location.reload();
-                    }
-                  }}
-                  className={`px-3 py-1 text-xs font-medium rounded transition-all ${
-                    !offlineMode
-                      ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg"
-                      : "text-white/60 hover:text-white/80"
-                  }`}
-                  title="Gemini Live API - Fast, high quality"
-                >
-                  Gemini Live
-                </button>
-                {/* Offline button */}
-                <button
-                  onClick={() => {
-                    if (!offlineMode) {
-                      setOfflineMode(true);
-                      localStorage.setItem('spectra_mode', 'offline');
-                      window.location.reload();
-                    }
-                  }}
-                  className={`px-3 py-1 text-xs font-medium rounded transition-all ${
-                    offlineMode
-                      ? "bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-lg"
-                      : "text-white/60 hover:text-white/80"
-                  }`}
-                  title="Offline mode - Ollama + Gemma 4"
-                >
-                  Offline
-                </button>
-              </div>
-            </div>
 
             {/* Extension status — with install CTA when missing */}
             <div

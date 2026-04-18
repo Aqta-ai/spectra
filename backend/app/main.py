@@ -71,13 +71,9 @@ app.add_middleware(
 
 @app.get("/api/system-info")
 async def system_info():
-    """Return system configuration info (provider type, offline mode, etc.)."""
-    provider_type = os.getenv("SPECTRA_PROVIDER", "gemini").lower()
-    offline_mode = provider_type in ("local_audio", "local", "audio", "gemma", "ollama")
-
+    """Return system configuration info."""
     return {
-        "provider": provider_type,
-        "offline_mode": offline_mode,
+        "provider": "gemini",
         "version": "1.0.0",
     }
 
@@ -188,21 +184,14 @@ async def websocket_endpoint(websocket: WebSocket):
     # Use session_id as user_id for session tracking
     user_id = session_id
 
-    # Route to appropriate provider based on SPECTRA_PROVIDER environment variable
-    provider = os.getenv("SPECTRA_PROVIDER", "gemini").lower()
-
-    if provider in ("ollama", "local", "offline"):
-        from app.streaming.ollama_session import OllamaStreamingSession
-        session = OllamaStreamingSession(websocket, user_id=user_id, session_id=session_id)
-        logger.info("Created Ollama session: %s (user: %s)", session_id, user_id)
-    else:
-        session = SpectraStreamingSession(websocket, user_id=user_id, session_id=session_id)
-        logger.info("Created Gemini session: %s (user: %s)", session_id, user_id)
+    # Create Gemini Live session
+    session = SpectraStreamingSession(websocket, user_id=user_id, session_id=session_id)
+    logger.info("Created Gemini session: %s (user: %s)", session_id, user_id)
 
     async with _session_lock:
         _active_session_objects[session_id] = session
 
-    logger.debug("Spectra session: %s (user: %s, provider: %s)", session_id, user_id, provider)
+    logger.debug("Spectra session: %s (user: %s)", session_id, user_id)
 
     if registry.on_session_start:
         registry.on_session_start(session_id, org_id, org_tier)
