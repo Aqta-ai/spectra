@@ -572,6 +572,11 @@ class SpectraStreamingSession:
                                                 if len(part.text) > 20:
                                                     logger.debug(f"Text part (len={len(part.text)}): {part.text[:80]}")
                                                 self._text_buffer.append(part.text)
+                                                # Send text parts as transcripts in real-time so UI shows response immediately
+                                                await self.websocket.send_json({
+                                                    "type": "transcript",
+                                                    "data": part.text,
+                                                })
 
                                     if sc.turn_complete:
                                         # Flush any audio still in the gate buffer
