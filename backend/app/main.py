@@ -147,14 +147,14 @@ async def vision_debug():
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    """Bidirectional streaming: client ↔ backend ↔ Gemini Live API."""
+    """Bidirectional streaming: client ↔ backend ↔ Gemini Live API or Ollama."""
     global _total_sessions
     await websocket.accept()
 
     query_string = str(websocket.scope.get("query_string", b""), "utf-8")
     params = parse_qs(query_string)
     api_key_raw = params.get("api_key", [""])[0]
-    
+
     # Get session_id from query params or generate a cryptographically secure one.
     # Using secrets.token_hex avoids id(websocket) % 10000 collisions.
     session_id = params.get("session_id", [f"s-{secrets.token_hex(8)}"])[0]
@@ -173,7 +173,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
     async with _session_lock:
         # Kill any existing session with the same ID to prevent duplicate
-        # Gemini connections, double audio, and wasted quota.
+        # connections and wasted quota.
         old_session = _active_session_objects.pop(session_id, None)
         if old_session is not None:
             logger.info("Killing duplicate session %s (new connection replacing old)", session_id)
@@ -187,14 +187,22 @@ async def websocket_endpoint(websocket: WebSocket):
 
     # Use session_id as user_id for session tracking
     user_id = session_id
-    
-    # Pass session_id to SpectraStreamingSession for persistent state
-    session = SpectraStreamingSession(websocket, user_id=user_id, session_id=session_id)
+
+    # Route to appropriate provider based on SPECTRA_PROVIDER environment variable
+    provider = os.getenv("SPECTRA_PROVIDER", "gemini").lower()
+
+    if provider in ("ollama", "local", "offline"):
+        from app.streaming.ollama_session import OllamaStreamingSession
+        session = OllamaStreamingSession(websocket, user_id=user_id, session_id=session_id)
+        logger.info("Created Ollama session: %s (user: %s)", session_id, user_id)
+    else:
+        session = SpectraStreamingSession(websocket, user_id=user_id, session_id=session_id)
+        logger.info("Created Gemini session: %s (user: %s)", session_id, user_id)
 
     async with _session_lock:
         _active_session_objects[session_id] = session
 
-    logger.debug("Spectra session: %s (user: %s)", session_id, user_id)
+    logger.debug("Spectra session: %s (user: %s, provider: %s)", session_id, user_id, provider)
 
     if registry.on_session_start:
         registry.on_session_start(session_id, org_id, org_tier)
