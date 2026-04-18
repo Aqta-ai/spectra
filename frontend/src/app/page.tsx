@@ -690,6 +690,28 @@ export default function Home() {
               )}
             </div>
 
+            {/* Provider toggle: Gemini vs Ollama */}
+            <div className="flex items-center gap-1 text-xs border border-white/20 rounded-md p-1 bg-white/5" title="Switch between Gemini Live and Ollama (Gemma 4)">
+              <button
+                onClick={() => {
+                  localStorage.setItem('spectra_provider', 'gemini');
+                  alert('Refresh to switch to Gemini Live');
+                }}
+                className="px-2 py-1 rounded transition-colors text-white/60 hover:text-white/80"
+              >
+                Gemini
+              </button>
+              <button
+                onClick={() => {
+                  localStorage.setItem('spectra_provider', 'ollama');
+                  alert('Set SPECTRA_PROVIDER=ollama in backend and refresh');
+                }}
+                className="px-2 py-1 rounded transition-colors text-white/60 hover:text-white/80"
+              >
+                Ollama
+              </button>
+            </div>
+
             <a
               href="#features"
               className="text-xs text-white/60 hover:text-white/80 transition-colors hidden sm:block"
