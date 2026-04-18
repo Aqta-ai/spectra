@@ -73,7 +73,18 @@ app.add_middleware(
 @app.get("/api/system-info")
 async def system_info():
     """Return system configuration info (provider type, offline mode, etc.)."""
-    provider_type = os.getenv("SPECTRA_PROVIDER", "gemini").lower()
+    # Read .env dynamically (not cached) to pick up provider switches
+    env_file = os.path.join(os.path.dirname(__file__), "..", ".env")
+    provider_type = "gemini"
+    try:
+        with open(env_file, "r") as f:
+            for line in f:
+                if line.startswith("SPECTRA_PROVIDER="):
+                    provider_type = line.split("=", 1)[1].strip().lower()
+                    break
+    except Exception:
+        pass
+
     offline_mode = provider_type in ("local_audio", "local", "audio", "gemma", "ollama")
 
     return {

@@ -707,21 +707,41 @@ export default function Home() {
               )}
             </div>
 
-            {/* Provider toggle - Just show current provider */}
-            <div
+            {/* Provider toggle - ONE CLICK */}
+            <button
+              onClick={async () => {
+                setStatusText('Switching provider...');
+                const newProvider = provider === 'gemini' ? 'ollama' : 'gemini';
+                try {
+                  const res = await fetch('/api/switch-provider', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ new_provider: newProvider }),
+                  });
+                  if (res.ok) {
+                    setStatusText(`Switched to ${newProvider}. Reloading...`);
+                    setTimeout(() => window.location.reload(), 800);
+                  } else {
+                    setStatusText('Failed to switch');
+                  }
+                } catch (e) {
+                  console.error(e);
+                  setStatusText('Error switching provider');
+                }
+              }}
               style={{
-                padding: '6px 12px',
-                fontSize: '12px',
-                fontWeight: 'bold',
+                padding: '8px 14px',
+                fontSize: '13px',
+                fontWeight: '600',
                 backgroundColor: provider === 'ollama' ? '#8b5cf6' : '#0ea5e9',
                 color: 'white',
-                borderRadius: '4px',
-                textTransform: 'uppercase',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
               }}
-              title="Use ./toggle-provider.sh to switch"
             >
-              {provider}
-            </div>
+              {provider === 'gemini' ? '→ Ollama' : '→ Gemini'}
+            </button>
 
             <a
               href="#features"
