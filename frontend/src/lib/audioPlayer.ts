@@ -66,15 +66,9 @@ export class PcmAudioPlayer {
     // even when turn_complete arrives while ensureRunning() is still awaiting.
     this.pendingChunks++;
 
-    console.log('[AudioPlayer] play() called, chunk size:', base64Data.length, 'pending:', this.pendingChunks);
-
     const ctx = await this.ensureRunning();
     if (!ctx || !this.gainNode) {
-      console.error('[AudioPlayer] AudioContext or GainNode not available', {
-        ctx: !!ctx,
-        gainNode: !!this.gainNode,
-        contextState: ctx?.state
-      });
+      console.error('[AudioPlayer] AudioContext or GainNode not available');
       this.pendingChunks--;
       // If everything is drained, fire the done callback (if any)
       if (this.chunkCount <= 0 && this.pendingChunks <= 0) {
@@ -84,8 +78,6 @@ export class PcmAudioPlayer {
       }
       return;
     }
-
-    console.log('[AudioPlayer] AudioContext ready, state:', ctx.state);
 
     // Decode base64 to Int16 array
     const raw = atob(base64Data);

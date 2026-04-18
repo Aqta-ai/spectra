@@ -344,12 +344,10 @@ export default function Home() {
       announcePolite(`You said: ${trimmed}. Spectra is thinking…`);
     },
     onAudio: (base64Data) => {
-      console.log('[Spectra] Audio chunk received, size:', base64Data.length);
       muteMic();
       // Warm up again so AudioContext is running (e.g. after tab background)
       audioPlayerRef.current.warmup();
       setIsSpeaking(true); // Orb shows "speaking" as soon as we get a chunk
-      console.log('[Spectra] Calling audioPlayer.play()');
       audioPlayerRef.current.play(base64Data);
     },
     onAction: async (action, params) => {
