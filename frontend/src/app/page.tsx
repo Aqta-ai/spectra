@@ -494,8 +494,9 @@ export default function Home() {
     fps: 3,
   });
 
+  // Disable wake word detection in offline mode (uses same Web Speech API)
   useVoiceActivation({
-    enabled: !isActive,
+    enabled: !isActive && !offlineMode,
     wakeWords: ["hey spectra", "start spectra", "ok spectra", "spectra"],
     onActivate: () => { handleStart(); },
   });
