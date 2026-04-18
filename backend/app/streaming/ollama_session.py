@@ -33,7 +33,7 @@ class OllamaStreamingSession:
 
         # Ollama client
         ollama_url = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
-        ollama_model = os.getenv("OLLAMA_MODEL", "gemma4")
+        ollama_model = os.getenv("OLLAMA_MODEL", "gemma2")
         self.ollama = OllamaClient(base_url=ollama_url, model=ollama_model)
 
         # Session state
@@ -94,7 +94,7 @@ class OllamaStreamingSession:
 
         if msg_type == "text":
             # User sent a text message
-            text = data.get("text", "").strip()
+            text = data.get("data", "").strip()
             if text:
                 await self._process_user_message(text)
 
@@ -163,12 +163,12 @@ class OllamaStreamingSession:
                             response_text += text_chunk
                             logger.debug(f"[Ollama] Chunk {chunk_count}: {repr(text_chunk[:50])}")
 
-                            # Send chunk to client (stream incrementally)
+                            # Send chunk to client as text (stream incrementally)
+                            # For offline mode, text responses are sent as "text" type (unlike Gemini which streams as "transcript")
                             try:
                                 await self.websocket.send_json({
-                                    "type": "transcript",
-                                    "text": text_chunk,
-                                    "final": False,
+                                    "type": "text",
+                                    "data": text_chunk,
                                 })
                             except Exception as e:
                                 logger.error(f"[Ollama] Failed to send chunk to client: {e}")
@@ -181,15 +181,13 @@ class OllamaStreamingSession:
                             response_text = postprocess_spectra_reply(response_text)
                             self._message_history.append({"role": "assistant", "content": response_text})
 
-                            # Send final marker
+                            # Send turn complete marker (Gemini also sends turn_complete event)
                             try:
                                 await self.websocket.send_json({
-                                    "type": "transcript",
-                                    "text": "",
-                                    "final": True,
+                                    "type": "turn_complete",
                                 })
                             except Exception as e:
-                                logger.error(f"[Ollama] Failed to send final marker: {e}")
+                                logger.error(f"[Ollama] Failed to send turn_complete: {e}")
 
                             logger.debug(f"[Ollama] Response: {response_text[:100]}...")
                             return  # Success — exit retry loop

@@ -221,7 +221,8 @@ export default function Home() {
   const audioContextWarmedRef = useRef(false);
   const geminiReconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const unmuteSafetyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  
+  const speakResponseRef = useRef<(text: string) => void>(() => {});
+
   // Multimodal Feedback System - 10X User Experience
   const feedbackSystemRef = useRef(getFeedbackSystem({
     audioEnabled: true,
@@ -429,7 +430,7 @@ export default function Home() {
           // For offline mode, speak the response using Web Speech API
           if (offlineMode) {
             console.log("[Spectra] Calling speakResponse for offline mode");
-            speakResponse(finalText);
+            speakResponseRef.current(finalText);
           }
         }
         setCurrentResponse("");
@@ -537,6 +538,11 @@ export default function Home() {
       }
     },
   });
+
+  // Keep speakResponse ref fresh for use in onTurnComplete callback
+  useEffect(() => {
+    speakResponseRef.current = speakResponse;
+  }, [speakResponse]);
 
   const handleFullStop = useCallback(() => {
     setIsActive(false);

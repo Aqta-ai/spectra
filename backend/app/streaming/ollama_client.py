@@ -1,4 +1,4 @@
-"""Ollama HTTP client for local LLM inference via Gemma 4."""
+"""Ollama HTTP client for local LLM inference (default: Gemma 2)."""
 
 import asyncio
 import httpx
@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 class OllamaClient:
     """HTTP client for Ollama /api/generate streaming endpoint."""
 
-    def __init__(self, base_url: str = "http://127.0.0.1:11434", model: str = "gemma4"):
+    def __init__(self, base_url: str = "http://127.0.0.1:11434", model: str = "gemma2"):
         self.base_url = base_url.rstrip("/")
         self.model = model
         self.timeout = httpx.Timeout(600.0)  # 10 min timeout for long generations
