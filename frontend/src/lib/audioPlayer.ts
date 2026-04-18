@@ -116,8 +116,17 @@ export class PcmAudioPlayer {
     // Soft start: fade in the first chunk after Q/silence so it doesn't sound rough
     if (isFirstChunkAfterSilence && this.gainNode && this.audioContext) {
       try {
+        this.gainNode.gain.cancelScheduledValues(startAt);
         this.gainNode.gain.setValueAtTime(0, startAt);
         this.gainNode.gain.linearRampToValueAtTime(1.0, startAt + this.FIRST_CHUNK_FADE_S);
+      } catch {
+        // ignore
+      }
+    } else if (!isFirstChunkAfterSilence && this.gainNode) {
+      // Ensure gain is at 1.0 for subsequent chunks (cancel any lingering ramps)
+      try {
+        this.gainNode.gain.cancelScheduledValues(startAt);
+        this.gainNode.gain.setValueAtTime(1.0, startAt);
       } catch {
         // ignore
       }
