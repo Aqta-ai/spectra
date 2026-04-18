@@ -260,3 +260,9 @@ spectra-one-pager.pdf
 # Keep: README.md, LICENSE, CONTRIBUTING.md, setup.py, .mailmap
 
 run-offline.sh
+
+# Private/internal documentation
+PRIVATE_REPO_BACKUP.md
+docs/TROUBLESHOOTING.md
+docs/VOICE_COMMANDS_REFERENCE.md
+docs/ACCESSIBILITY_QUICK_START.md
