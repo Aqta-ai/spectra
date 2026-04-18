@@ -1372,11 +1372,18 @@ export default function Home() {
                 <input
                   ref={inputRef}
                   type="text"
-                  placeholder={isConnected ? "Type a message…" : "Press Q to connect"}
+                  placeholder={isConnected ? (offlineMode ? "Speak or type here…" : "Type a message…") : "Press Q to connect"}
                   className="flex-1 px-3 py-2.5 bg-transparent border-none focus:outline-none text-white placeholder-white/30 text-sm"
+                  disabled={!isConnected}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey && inputRef.current) {
                       e.preventDefault();
+                      const text = inputRef.current.value.trim();
+                      if (text && isConnected) {
+                        console.log("[Spectra] User typed:", text);
+                        sendText(text);
+                        inputRef.current.value = "";
+                      }
                       handleSendMessage(inputRef.current.value);
                     }
                   }}
