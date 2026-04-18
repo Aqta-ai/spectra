@@ -3,29 +3,29 @@
 @tailwind utilities;
 
 :root {
-  --spectra-primary:   #6C5CE7;
-  --spectra-secondary: #A29BFE;
-  --spectra-bg:        #0f172a;
-  --spectra-dark:      #0F0E17;
-  --spectra-surface:   #1e293b;
-  --spectra-text:      #f8fafc;
-  --spectra-muted:     #94A1B2;
-  /* Glow colours reused in box-shadows */
-  --glow-purple: rgba(108, 92, 231, 0.45);
-  --glow-violet: rgba(162, 155, 254, 0.35);
+  --spectra-primary:   #6B5CE7;
+  --spectra-secondary: #6B5CE7;
+  --spectra-bg:        #050508;
+  --spectra-dark:      #030305;
+  --spectra-surface:   #0F0E17;
+  --spectra-text:      #FAFAFA;
+  --spectra-muted:     #8C8C99;
+  /* Glow colours - purple only */
+  --glow-purple: rgba(107, 92, 231, 0.4);
+  --glow-violet: rgba(107, 92, 231, 0.3);
 }
 
 /* Light mode overrides */
 .light {
-  --spectra-primary:   #6C5CE7;
-  --spectra-secondary: #8b7ff4;
-  --spectra-bg:        #f8fafc;
-  --spectra-dark:      #e2e8f0;
-  --spectra-surface:   #ffffff;
-  --spectra-text:      #0f172a;
-  --spectra-muted:     #64748b;
-  --glow-purple: rgba(108, 92, 231, 0.15);
-  --glow-violet: rgba(162, 155, 254, 0.12);
+  --spectra-primary:   #6B5CE7;
+  --spectra-secondary: #6B5CE7;
+  --spectra-bg:        #FAFAFA;
+  --spectra-dark:      #EAEAEA;
+  --spectra-surface:   #FFFFFF;
+  --spectra-text:      #050508;
+  --spectra-muted:     #8C8C99;
+  --glow-purple: rgba(107, 92, 231, 0.2);
+  --glow-violet: rgba(107, 92, 231, 0.15);
 }
 
 * {
@@ -37,14 +37,25 @@ html {
   -webkit-text-size-adjust: 100%;
 }
 
+/* Selection color for all text */
+html::selection {
+  background-color: #6B5CE7 !important;
+  color: white !important;
+}
+
+html::-moz-selection {
+  background-color: #6B5CE7 !important;
+  color: white !important;
+}
+
 body {
   background: var(--spectra-bg);
-  /* Subtle purple radial glow in top-centre and bottom-right */
+  /* Subtle purple glow - modern minimalist */
   background-image:
-    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(108, 92, 231, 0.10), transparent),
-    radial-gradient(ellipse 60% 40% at 80% 110%, rgba(162, 155, 254, 0.05), transparent);
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(107, 92, 231, 0.08), transparent),
+    radial-gradient(ellipse 60% 40% at 80% 110%, rgba(107, 92, 231, 0.05), transparent);
   color: var(--spectra-text);
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", sans-serif;
   margin: 0;
   padding: 0;
   min-height: 100vh;
@@ -54,11 +65,66 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+/* Force selection color across entire page */
+body::selection {
+  background-color: #6B5CE7 !important;
+  color: white !important;
+}
+
+body::-moz-selection {
+  background-color: #6B5CE7 !important;
+  color: white !important;
+}
+
 /* High-contrast focus ring , WCAG 2.1 AA compliant, clearly visible on dark bg */
 *:focus-visible {
   outline: 3px solid #facc15;
   outline-offset: 3px;
   border-radius: 4px;
+}
+
+/* Text selection — purple theme (matches button) */
+::selection {
+  background: #6B5CE7 !important;
+  color: white !important;
+}
+
+::-moz-selection {
+  background: #6B5CE7 !important;
+  color: white !important;
+}
+
+/* Webkit browsers */
+::-webkit-selection {
+  background: #6B5CE7 !important;
+  color: white !important;
+}
+
+/* Force purple theme everywhere — no blue allowed */
+a {
+  color: #6B5CE7 !important;
+}
+
+a:visited {
+  color: #6B5CE7 !important;
+}
+
+a:hover,
+a:focus {
+  color: #ffffff !important;
+}
+
+/* Override any accent colors to purple */
+::-webkit-scrollbar-thumb:hover {
+  background: #6B5CE7 !important;
+}
+
+/* Input focus rings */
+input:focus,
+textarea:focus,
+select:focus {
+  outline-color: #6B5CE7 !important;
+  box-shadow: 0 0 0 3px rgba(176, 38, 255, 0.1) !important;
 }
 
 /* ── Spectra Orb , the central animated voice indicator ─────────────────── */
@@ -69,13 +135,13 @@ body {
   border-radius: 50%;
   background: radial-gradient(
     circle at 35% 35%,
-    var(--spectra-secondary),
-    var(--spectra-primary) 60%,
-    #3b28cc
+    #7B6FE7,
+    #6B5CE7 60%,
+    #5B4CD7
   );
   box-shadow:
-    0 0 40px 8px var(--glow-purple),
-    0 0 80px 20px rgba(108, 92, 231, 0.15);
+    0 0 40px 8px rgba(107, 92, 231, 0.4),
+    0 0 80px 20px rgba(107, 92, 231, 0.2);
   transition: box-shadow 0.4s ease, transform 0.4s ease;
 }
 
@@ -83,13 +149,13 @@ body {
 .spectra-orb-listening {
   background: radial-gradient(
     circle at 35% 35%,
-    #c8f787,
-    #4ade80 50%,
-    #16a34a
+    #9B8FFF,
+    #7B6FE7 50%,
+    #5B4CD7
   );
   box-shadow:
-    0 0 40px 12px rgba(74, 222, 128, 0.5),
-    0 0 80px 24px rgba(74, 222, 128, 0.2);
+    0 0 40px 12px rgba(107, 92, 231, 0.6),
+    0 0 80px 24px rgba(107, 92, 231, 0.3);
 }
 
 /* Speaking: violet glow */
@@ -98,11 +164,11 @@ body {
     circle at 35% 35%,
     var(--spectra-secondary),
     var(--spectra-primary) 50%,
-    #7c3aed
+    #FF00FF
   );
   box-shadow:
     0 0 50px 16px var(--glow-purple),
-    0 0 100px 32px rgba(108, 92, 231, 0.2);
+    0 0 100px 32px rgba(176, 38, 255, 0.2);
 }
 
 /* ── Waveform bars ───────────────────────────────────────────────────────── */
@@ -161,7 +227,7 @@ textarea {
 /* ── Subtle dot-grid for main hero area ─────────────────────────────────── */
 
 .hero-mesh {
-  background-image: radial-gradient(circle, rgba(108, 92, 231, 0.12) 1px, transparent 1px);
+  background-image: radial-gradient(circle, rgba(0, 229, 255, 0.12) 1px, transparent 1px);
   background-size: 28px 28px;
   background-position: center center;
   mask-image: radial-gradient(ellipse 70% 80% at 50% 50%, black 30%, transparent 100%);
@@ -171,8 +237,8 @@ textarea {
 /* ── CTA glow animation for Connect button ───────────────────────────────── */
 
 @keyframes glow-pulse {
-  0%, 100% { box-shadow: 0 0 20px 4px rgba(108, 92, 231, 0.35), 0 4px 24px rgba(108, 92, 231, 0.2); }
-  50%       { box-shadow: 0 0 32px 8px rgba(108, 92, 231, 0.55), 0 4px 32px rgba(108, 92, 231, 0.3); }
+  0%, 100% { box-shadow: 0 0 20px 4px rgba(108, 92, 231, 0.4), 0 4px 24px rgba(108, 92, 231, 0.25); }
+  50%       { box-shadow: 0 0 32px 8px rgba(108, 92, 231, 0.6), 0 4px 32px rgba(108, 92, 231, 0.35); }
 }
 
 .cta-glow {
@@ -278,4 +344,100 @@ textarea {
 
 .animate-slide-up {
   animation: slide-up 0.3s ease-out;
+}
+
+/* ── Landing page animations ────────────────────────────────────────────── */
+
+/* Typing cursor blink */
+@keyframes blink-cursor {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.animate-blink {
+  animation: blink-cursor 0.8s ease-in-out infinite;
+}
+
+/* Staggered fade-in for sections */
+@keyframes stagger-in {
+  0% {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.stagger-1 { animation: stagger-in 0.6s ease-out 0.1s both; }
+.stagger-2 { animation: stagger-in 0.6s ease-out 0.25s both; }
+.stagger-3 { animation: stagger-in 0.6s ease-out 0.4s both; }
+.stagger-4 { animation: stagger-in 0.6s ease-out 0.55s both; }
+.stagger-5 { animation: stagger-in 0.6s ease-out 0.7s both; }
+.stagger-6 { animation: stagger-in 0.6s ease-out 0.85s both; }
+
+/* Gradient text shimmer */
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+.text-shimmer {
+  background-size: 200% auto;
+  animation: shimmer 4s linear infinite;
+}
+
+/* Floating glow orbs for background */
+@keyframes float-slow {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(30px, -20px) scale(1.05); }
+  66% { transform: translate(-20px, 15px) scale(0.95); }
+}
+
+@keyframes float-slower {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-40px, 25px) scale(1.08); }
+}
+
+.float-slow { animation: float-slow 8s ease-in-out infinite; }
+.float-slower { animation: float-slower 12s ease-in-out infinite; }
+
+/* Stat counter glow */
+@keyframes stat-glow {
+  0%, 100% { text-shadow: 0 0 10px rgba(0, 229, 255, 0.3); }
+  50% { text-shadow: 0 0 20px rgba(0, 229, 255, 0.6); }
+}
+
+.stat-glow {
+  animation: stat-glow 3s ease-in-out infinite;
+}
+
+/* Persona card hover lift */
+.persona-card {
+  transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+}
+
+.persona-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px -8px rgba(0, 229, 255, 0.15);
+  border-color: rgba(0, 229, 255, 0.25);
+}
+
+/* Video container glow */
+.video-glow {
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.06),
+    0 8px 40px -8px rgba(0, 229, 255, 0.2),
+    0 0 80px -20px rgba(176, 38, 255, 0.15);
+}
+
+/* Open source badge pulse */
+@keyframes oss-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.4); }
+  50% { box-shadow: 0 0 0 8px rgba(74, 222, 128, 0); }
+}
+
+.oss-pulse {
+  animation: oss-pulse 2.5s ease-in-out infinite;
 }

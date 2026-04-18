@@ -625,8 +625,7 @@ class SpectraStreamingSession:
                                 break
                             logger.error(f"Gemini receive error: {type(e).__name__}: {e}", exc_info=True)
                             _reconnect_delay = min(_reconnect_delay * 2, 30)
-
-                        finally:
+                            # Close provider on error only
                             self._running = False
                             self.gemini_session = None
 
@@ -854,7 +853,8 @@ class SpectraStreamingSession:
                             else:
                                 logger.debug("Skipping invalid audio chunk: len=%d (expected even, >=2)", len(audio_data))
                         except Exception as e:
-                            logger.warning("Audio send failed: %s", e)
+                            # Provider disconnected (e.g., Gemini connection closed). Log once and move on.
+                            logger.debug("Audio send failed (provider may have disconnected): %s", type(e).__name__)
 
                 elif msg_type == "screenshot":
                     frame_data = msg["data"]

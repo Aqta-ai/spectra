@@ -129,7 +129,7 @@ def mock_ws():
 @pytest.mark.asyncio
 async def test_action_pending_resolves_by_id(mock_ws):
     """When action_result arrives with matching id, the correct future gets the result."""
-    with patch("app.streaming.session.genai.Client"):
+    with patch("google.genai.Client"):
         session = SpectraStreamingSession(mock_ws, user_id="u", session_id="s")
     session._running = True
     session.gemini_session = MagicMock()
@@ -151,7 +151,7 @@ async def test_action_pending_resolves_by_id(mock_ws):
 @pytest.mark.asyncio
 async def test_action_pending_stale_result_discarded(mock_ws):
     """When action_result arrives for an id that timed out, it is discarded (no crash)."""
-    with patch("app.streaming.session.genai.Client"):
+    with patch("google.genai.Client"):
         session = SpectraStreamingSession(mock_ws, user_id="u", session_id="s")
 
     # No pending future for this id (e.g. already timed out)
@@ -166,7 +166,7 @@ async def test_action_pending_stale_result_discarded(mock_ws):
 @pytest.mark.asyncio
 async def test_action_pending_two_actions_different_ids(mock_ws):
     """Two actions with different ids get their own results; first timeout does not hand result to second."""
-    with patch("app.streaming.session.genai.Client"):
+    with patch("google.genai.Client"):
         session = SpectraStreamingSession(mock_ws, user_id="u", session_id="s")
 
     f1 = asyncio.get_event_loop().create_future()

@@ -19,6 +19,11 @@ interface Message {
   timestamp: number;
 }
 
+interface SystemInfo {
+  provider: string;
+  offline_mode: boolean;
+}
+
 /**
  * Strip ALL model inner thoughts, meta-commentary, and process narration.
  * Module-level constant , never recreated per call.
@@ -147,6 +152,56 @@ export default function Home() {
   const [politeAnnouncement, setPoliteAnnouncement] = useState("");
   const [extensionReady, setExtensionReady] = useState(false);
   const [showExtensionBanner, setShowExtensionBanner] = useState(false);
+  const [offlineMode, setOfflineMode] = useState(false);
+
+  // Typing effect for demo commands
+  const DEMO_COMMANDS = [
+    "Go to BBC News and read me the top headline",
+    "Search for flights to London under €100",
+    "Fill in this form with my details",
+    "Click the sign in button",
+    "Scroll down and summarise this article",
+    "Find the cheapest option and book it",
+  ];
+  const [typedText, setTypedText] = useState("");
+  const [cmdIndex, setCmdIndex] = useState(0);
+  const [isTyping, setIsTypingEffect] = useState(true);
+
+  useEffect(() => {
+    if (isActive) return; // Don't run when Spectra is active
+    const cmd = DEMO_COMMANDS[cmdIndex];
+    let charIndex = 0;
+    let timeout: ReturnType<typeof setTimeout>;
+
+    if (isTyping) {
+      const typeChar = () => {
+        if (charIndex <= cmd.length) {
+          setTypedText(cmd.slice(0, charIndex));
+          charIndex++;
+          timeout = setTimeout(typeChar, 45 + Math.random() * 30);
+        } else {
+          timeout = setTimeout(() => setIsTypingEffect(false), 2000);
+        }
+      };
+      typeChar();
+    } else {
+      // Erase
+      let eraseIndex = cmd.length;
+      const eraseChar = () => {
+        if (eraseIndex >= 0) {
+          setTypedText(cmd.slice(0, eraseIndex));
+          eraseIndex--;
+          timeout = setTimeout(eraseChar, 20);
+        } else {
+          setCmdIndex((prev) => (prev + 1) % DEMO_COMMANDS.length);
+          setIsTypingEffect(true);
+        }
+      };
+      eraseChar();
+    }
+
+    return () => clearTimeout(timeout);
+  }, [cmdIndex, isTyping, isActive]);
 
   const { isFirstTime, hasSharedScreen, shouldShowOnboarding, markScreenShared, dismissOnboarding, markOnboardingComplete } = useOnboarding();
 
@@ -192,6 +247,12 @@ export default function Home() {
     // Delay banner by 2s — extension pings back within ~500ms if installed,
     // so showing it immediately causes a visible flicker on every load.
     extensionBannerTimerRef.current = setTimeout(() => setShowExtensionBanner(true), 2000);
+
+    // Fetch system info to detect offline mode
+    fetch("http://localhost:8080/api/system-info").then(r => r.json()).then(info => {
+      if (info?.offline_mode) setOfflineMode(true);
+    }).catch(() => {/* silently fail if endpoint doesn't exist */});
+
     return () => {
       clearInterval(id);
       if (extensionBannerTimerRef.current) clearTimeout(extensionBannerTimerRef.current);
@@ -562,7 +623,7 @@ export default function Home() {
             <img src="/icon512.png" alt="" aria-hidden="true" className="w-7 h-7 sm:w-8 sm:h-8" />
             <div>
               <span className="text-lg sm:text-xl font-semibold tracking-tight">Spectra</span>
-              <span className="hidden sm:inline text-white/40 text-xs font-normal ml-2">Browse by voice</span>
+              <span className="hidden sm:inline text-white/60 text-xs font-normal ml-2">Browse by voice</span>
             </div>
           </div>
 
@@ -585,7 +646,7 @@ export default function Home() {
                 connectionState === "connected" ? "text-green-400/70"
                 : connectionState === "reconnecting" ? "text-amber-400/70"
                 : connectionState === "failed" ? "text-red-400/80"
-                : "text-white/40"
+                : "text-white/60"
               }`}>
                 {connectionState === "reconnecting"
                   ? `Reconnecting (${reconnectAttempt})…`
@@ -598,12 +659,22 @@ export default function Home() {
               {connectionState === "failed" && (
                 <button
                   onClick={handleRetryConnection}
-                  className="ml-1 px-2.5 py-1 text-xs bg-spectra-primary hover:bg-spectra-primary/80 rounded-md transition-colors"
+                  className="ml-1 px-2.5 py-1 text-xs bg-spectra-primary hover:bg-white/20 rounded-md transition-colors"
                 >
                   Retry
                 </button>
               )}
             </div>
+
+            {/* Offline mode badge */}
+            {offlineMode && (
+              <span
+                className="text-xs px-2 py-1 rounded-full bg-purple-500/20 border border-purple-500/40 text-purple-300 font-medium"
+                title="Running fully offline — Whisper STT + Gemma + Piper TTS"
+              >
+                Offline Mode
+              </span>
+            )}
 
             {/* Extension status — with install CTA when missing */}
             <div
@@ -624,25 +695,23 @@ export default function Home() {
               )}
             </div>
 
-            <button
-              onClick={() => setShowKeyboardShortcuts((v) => !v)}
-              className="text-xs text-white/40 hover:text-white/80 transition-colors"
-              aria-label="Toggle keyboard shortcuts"
-              aria-expanded={showKeyboardShortcuts}
-            >
-              Shortcuts
-            </button>
-
             <a
-              href="/guide"
-              className="text-xs text-white/40 hover:text-white/80 transition-colors hidden sm:block"
+              href="#features"
+              className="text-xs text-white/60 hover:text-white/80 transition-colors hidden sm:block"
             >
-              Guide
+              Features
             </a>
 
             <a
-              href="/overlay"
-              className="text-xs text-white/40 hover:text-white/80 transition-colors hidden sm:block"
+              href="#how-it-works"
+              className="text-xs text-white/60 hover:text-white/80 transition-colors hidden sm:block"
+            >
+              How it works
+            </a>
+
+            <a
+              href="/guide"
+              className="text-xs text-white/60 hover:text-white/80 transition-colors hidden sm:block"
             >
               Overlay
             </a>
@@ -694,160 +763,298 @@ export default function Home() {
           </div>
         )}
 
-        {/* Dot-grid background , only in hero state */}
+        {/* Floating glow orbs — ambient background */}
         {!isActive && messages.length === 0 && (
-          <div className="absolute inset-0 hero-mesh pointer-events-none" aria-hidden="true" />
+          <>
+            <div className="absolute inset-0 hero-mesh pointer-events-none" aria-hidden="true" />
+            <div className="absolute top-20 left-[15%] w-72 h-72 bg-spectra-primary/5 rounded-full blur-3xl float-slow pointer-events-none" aria-hidden="true" />
+            <div className="absolute bottom-32 right-[10%] w-96 h-96 bg-spectra-secondary/5 rounded-full blur-3xl float-slower pointer-events-none" aria-hidden="true" />
+          </>
         )}
         {!isActive && messages.length === 0 ? (
-          /* ── Idle hero ──────────────────────────────────────────────────── */
-          <div className="flex flex-col items-center justify-center flex-1 text-center space-y-7 sm:space-y-9 -mt-8 sm:-mt-12">
+          /* ── Full Landing Page ────────────────────────────────────────── */
+          <div className="flex flex-col items-center w-full max-w-5xl mx-auto space-y-16 sm:space-y-24 pb-12">
 
-            {/* Orb + rings */}
-            <div className="relative flex items-center justify-center">
-              {/* Outer glow ring , brightens when connected */}
-              <div
-                className={`absolute rounded-full border transition-all duration-1000 pointer-events-none ${
-                  connectionState === "connected" ? "border-spectra-primary/20 opacity-100" : "border-white/5 opacity-60"
-                }`}
-                style={{ width: "calc(100% + 44px)", height: "calc(100% + 44px)" }}
-                aria-hidden="true"
-              />
-              {/* Inner ring */}
-              <div
-                className={`absolute rounded-full border-2 transition-all duration-700 pointer-events-none ${
-                  connectionState === "connected" ? "border-spectra-primary/30" : "border-white/8"
-                }`}
-                style={{ width: "calc(100% + 20px)", height: "calc(100% + 20px)" }}
-                aria-hidden="true"
-              />
-              {/* Orb */}
-              <button
-                onClick={handleToggle}
-                className="relative w-32 h-32 sm:w-40 sm:h-40 spectra-orb animate-orb-idle focus:outline-none focus-visible:outline-4 focus-visible:outline-yellow-400"
-                aria-label={isActive ? "Stop Spectra" : "Start Spectra"}
-              >
-                <span className="absolute inset-0 flex items-center justify-center text-white text-4xl sm:text-5xl font-bold select-none" aria-hidden="true">S</span>
-              </button>
-            </div>
-
-            {/* Copy */}
-            <div className="space-y-3">
-              <h2 className={`text-2xl sm:text-3xl font-semibold ${
-                statusText === "Your screen, your voice, your way"
-                  ? "bg-gradient-to-r from-white via-spectra-secondary to-spectra-primary bg-clip-text text-transparent"
-                  : "text-white"
-              }`}>{statusText}</h2>
-
-              {/* Explanation - only show on initial load */}
-              {!isActive && messages.length === 0 && statusText === "Your screen, your voice, your way" && (
-                <p className="text-base text-white/70 max-w-2xl mx-auto">
-                  Spectra sees your screen, listens to your voice, and takes action — click, type, navigate, all hands-free.
-                </p>
-              )}
-
-              {/* Helpful shortcuts - always visible */}
-              {!isActive && messages.length === 0 && (
-                <div className="flex flex-wrap justify-center gap-3 text-sm text-white/60">
-                  <div className="flex items-center gap-2">
-                    <kbd className="px-2 py-1 bg-white/10 rounded border border-white/20 font-mono text-xs">Q</kbd>
-                    <span>to connect</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <kbd className="px-2 py-1 bg-white/10 rounded border border-white/20 font-mono text-xs">W</kbd>
-                    <span>to share screen</span>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* CTA */}
-            {connectionState === "connected" ? (
-              <button
-                onClick={handleStart}
-                className="flex items-center gap-2.5 px-10 py-3.5 bg-spectra-primary hover:bg-spectra-primary/85 active:scale-95 text-white font-semibold rounded-xl transition-all text-base shadow-lg shadow-spectra-primary/30"
-                aria-label="Start Spectra , tap to begin"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4M12 3a4 4 0 014 4v4a4 4 0 01-8 0V7a4 4 0 014-4z" />
-                </svg>
-                Start listening
-              </button>
-            ) : connectionState === "reconnecting" ? (
-              <div className="flex items-center gap-2.5 px-10 py-3.5 rounded-xl border border-amber-400/20 bg-amber-400/5 text-amber-400/80 text-base font-semibold" role="status" aria-live="polite">
-                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-                </svg>
-                Reconnecting…
-              </div>
-            ) : (
-              <div className="flex flex-col items-center gap-2">
+            {/* ═══ HERO SECTION ═══════════════════════════════════════════ */}
+            <div className="flex flex-col items-center text-center space-y-8 pt-4 sm:pt-8 stagger-1">
+              {/* Orb + rings */}
+              <div className="relative flex items-center justify-center">
+                <div
+                  className={`absolute rounded-full border transition-all duration-1000 pointer-events-none ${
+                    connectionState === "connected" ? "border-spectra-primary/20 opacity-100" : "border-white/5 opacity-60"
+                  }`}
+                  style={{ width: "calc(100% + 44px)", height: "calc(100% + 44px)" }}
+                  aria-hidden="true"
+                />
+                <div
+                  className={`absolute rounded-full border-2 transition-all duration-700 pointer-events-none ${
+                    connectionState === "connected" ? "border-spectra-primary/30" : "border-white/8"
+                  }`}
+                  style={{ width: "calc(100% + 20px)", height: "calc(100% + 20px)" }}
+                  aria-hidden="true"
+                />
                 <button
-                  onClick={handleRetryConnection}
-                  disabled={!extensionReady}
-                  className={`flex items-center gap-2.5 px-10 py-3.5 font-semibold rounded-xl transition-all text-base ${
-                    extensionReady
-                      ? "bg-spectra-primary hover:bg-spectra-primary/90 active:scale-95 cta-glow cursor-pointer"
-                      : "bg-white/10 cursor-not-allowed opacity-50"
-                  } text-white`}
-                  aria-label={extensionReady ? "Connect to Spectra" : "Install extension first"}
-                  title={!extensionReady ? "Install Spectra Bridge extension to continue" : ""}
+                  onClick={handleToggle}
+                  className="relative w-28 h-28 sm:w-36 sm:h-36 spectra-orb animate-orb-idle focus:outline-none focus-visible:outline-4 focus-visible:outline-yellow-400"
+                  aria-label={isActive ? "Stop Spectra" : "Start Spectra"}
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0" />
-                  </svg>
-                  Connect
+                  <span className="absolute inset-0 flex items-center justify-center text-white/90 drop-shadow-lg" aria-hidden="true">
+                    <svg className="w-10 h-10 sm:w-14 sm:h-14" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
+                    </svg>
+                  </span>
                 </button>
-                {!extensionReady && (
-                  <p className="text-xs text-white/50 max-w-xs text-center">
-                    Install the{" "}
-                    <a
-                      href="https://chromewebstore.google.com/detail/spectra/ocaghbifpjeaaomknnbmckdemhdllnhg"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-spectra-primary hover:text-spectra-secondary underline"
-                    >
-                      Spectra Bridge extension
-                    </a>
-                    {" "}first
+              </div>
+
+              {/* Headline + sub */}
+              <div className="space-y-4">
+                <h1 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-tight">
+                  <span className="bg-gradient-to-r from-white via-spectra-primary to-spectra-secondary bg-clip-text text-transparent text-shimmer">
+                    Your screen, your voice,
+                  </span>
+                  <br />
+                  <span className="text-white">your way.</span>
+                </h1>
+                <p className="text-base sm:text-lg text-white max-w-2xl mx-auto leading-relaxed">
+                  Spectra is an AI agent that sees your screen, listens to your voice, and takes action, <em>click, type, navigate, read</em>, entirely hands-free. Built for accessibility. Designed for everyone.
+                </p>
+              </div>
+
+              {/* Animated typing demo */}
+              <div className="w-full max-w-xl mx-auto">
+                <div className="glass rounded-2xl border border-white/10 px-6 py-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                    <span className="text-xs text-white/60 uppercase tracking-wider">Listening</span>
+                  </div>
+                  <p className="text-left text-base sm:text-lg text-white font-medium min-h-[28px]">
+                    &ldquo;{typedText}<span className="inline-block w-0.5 h-5 bg-spectra-primary ml-0.5 align-middle animate-blink" />&rdquo;
                   </p>
+                </div>
+              </div>
+
+              {/* CTA buttons */}
+              <div className="flex flex-col sm:flex-row items-center gap-3">
+                {connectionState === "connected" ? (
+                  <button
+                    onClick={handleStart}
+                    className="flex items-center gap-2.5 px-10 py-3.5 bg-[#6C5CE7] hover:bg-[#5a4cd0] active:scale-95 text-white font-semibold rounded-xl transition-all text-base shadow-lg shadow-[#6C5CE7]/30"
+                    aria-label="Start Spectra"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4M12 3a4 4 0 014 4v4a4 4 0 01-8 0V7a4 4 0 014-4z" />
+                    </svg>
+                    Start listening
+                  </button>
+                ) : connectionState === "reconnecting" ? (
+                  <div className="flex items-center gap-2.5 px-10 py-3.5 rounded-xl border border-amber-400/20 bg-amber-400/5 text-amber-400/80 text-base font-semibold" role="status">
+                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                    </svg>
+                    Reconnecting…
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleRetryConnection}
+                    disabled={!extensionReady}
+                    className={`flex items-center gap-2.5 px-10 py-3.5 font-semibold rounded-xl transition-all text-base ${
+                      extensionReady
+                        ? "bg-[#6C5CE7] hover:bg-[#5a4cd0] active:scale-95 cta-glow cursor-pointer"
+                        : "bg-white/10 cursor-not-allowed opacity-50"
+                    } text-white`}
+                    aria-label={extensionReady ? "Start Spectra" : "Install extension first"}
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0" />
+                    </svg>
+                    Start Spectra
+                  </button>
+                )}
+                <a
+                  href="https://www.youtube.com/watch?v=MJQX4xapRA0"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 px-6 py-3.5 rounded-xl border border-white/10 text-white/70 hover:text-white hover:border-white/20 transition-all text-sm font-medium"
+                >
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                  Watch demo
+                </a>
+              </div>
+
+              {/* Keyboard hints */}
+              <div className="flex flex-wrap justify-center gap-4 text-sm text-white/60">
+                <div className="flex items-center gap-2">
+                  <kbd className="px-2 py-1 bg-white/8 rounded border border-white/15 font-mono text-xs">Q</kbd>
+                  <span>to connect</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <kbd className="px-2 py-1 bg-white/8 rounded border border-white/15 font-mono text-xs">W</kbd>
+                  <span>to share screen</span>
+                </div>
+                {!extensionReady && (
+                  <a
+                    href="https://chromewebstore.google.com/detail/spectra/ocaghbifpjeaaomknnbmckdemhdllnhg"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-spectra-primary/70 hover:text-white underline underline-offset-2 text-xs"
+                  >
+                    Install Chrome extension
+                  </a>
                 )}
               </div>
-            )}
-
-            {/* Feature pills */}
-            <div className="flex flex-wrap justify-center gap-2 text-xs text-white/40">
-              {[
-                { label: "Voice first", icon: <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4M12 3a4 4 0 014 4v4a4 4 0 01-8 0V7a4 4 0 014-4z" /></svg> },
-                { label: "Screen aware", icon: <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg> },
-                { label: "Hands-free", icon: <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3m0 0V11" /></svg> },
-                { label: "Accessibility focused", icon: <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="1" strokeWidth={2} /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l1-5H7l3-7h4l3 7h-3l1 5" /></svg> },
-              ].map(({ label, icon }) => (
-                <span key={label} className="flex items-center gap-1.5 px-3 py-1 rounded-full border border-white/10 bg-white/4">
-                  {icon}{label}
-                </span>
-              ))}
             </div>
 
-            {/* Try asking me prompts */}
-            <div className="space-y-2 text-center">
-              <p className="text-xs text-white/30 uppercase tracking-wider">Try saying</p>
-              <div className="flex flex-wrap justify-center gap-2">
+            {/* ═══ STATS BAR ══════════════════════════════════════════════ */}
+            <div className="w-full stagger-2">
+              <div className="glass rounded-2xl border border-white/8 px-6 py-6">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 text-center">
+                  {[
+                    { value: "99.2%", label: "Test pass rate", sub: "442 tests" },
+                    { value: "<1s", label: "Voice response", sub: "Real-time streaming" },
+                    { value: "24", label: "Languages", sub: "Native audio capabilities" },
+                    { value: "Zero", label: "Data stored", sub: "Privacy by design", showLock: true },
+                  ].map(({ value, label, sub, showLock }) => (
+                    <div key={label} className="space-y-1">
+                      <div className="flex items-center justify-center gap-2">
+                        <p className="text-2xl sm:text-3xl font-bold text-spectra-secondary">{value}</p>
+                        {showLock && <svg className="w-6 h-6 text-spectra-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>}
+                      </div>
+                      <p className="text-sm text-white font-medium">{label}</p>
+                      <p className="text-xs text-white/60">{sub}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* ═══ VIDEO DEMO ═════════════════════════════════════════════ */}
+            <div className="w-full stagger-3">
+              <div className="text-center mb-6">
+                <h2 className="text-xl sm:text-2xl font-bold text-white">See Spectra in action</h2>
+                <p className="text-sm text-white/50 mt-1">A blind user browses BBC News, entirely by voice</p>
+              </div>
+              <div className="relative rounded-2xl overflow-hidden video-glow">
+                <div className="aspect-video bg-spectra-dark">
+                  <iframe
+                    className="w-full h-full"
+                    src="https://www.youtube.com/embed/MJQX4xapRA0?rel=0&modestbranding=1"
+                    title="Spectra demo, voice-controlled browser for accessibility"
+                    frameBorder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* ═══ WHO IT'S FOR ═══════════════════════════════════════════ */}
+            <div className="w-full stagger-4">
+              <div id="features" className="text-center mb-8">
+                <h2 className="text-xl sm:text-2xl font-bold text-white">Built for people, not just browsers</h2>
+                <p className="text-sm text-white/50 mt-1">2.2 billion people worldwide have a vision impairment. Spectra closes the gap.</p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {[
-                  "Search for flights to London",
-                  "Read this article aloud",
-                  "Fill in this form",
-                  "Find the cheapest option",
-                  "Click the sign in button",
-                  "Scroll down and summarise",
-                ].map((prompt) => (
-                  <span
-                    key={prompt}
-                    className="px-3 py-1.5 text-xs text-white/50 rounded-full border border-white/10 bg-white/3 cursor-default select-none"
+                  {
+                    icon: <svg className="w-8 h-8 text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>,
+                    title: "Blind & low-vision users",
+                    desc: "Navigate any website by voice. No more rigid screen readers that break on modern UIs.",
+                    stat: "43M blind people worldwide",
+                  },
+                  {
+                    icon: <svg className="w-8 h-8 text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3m0 0V11" /></svg>,
+                    title: "Hands-free workers",
+                    desc: "Surgeons, mechanics, cooks, anyone whose hands are busy but needs their browser.",
+                    stat: "100% keyboard + voice control",
+                  },
+                  {
+                    icon: <svg className="w-8 h-8 text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>,
+                    title: "Accessibility teams",
+                    desc: "See your site through Spectra's eyes. Reveal what AI sees, and what's fundamentally broken.",
+                    stat: "96% of top 1M sites fail WCAG",
+                  },
+                ].map(({ icon, title, desc, stat }) => (
+                  <div
+                    key={title}
+                    className="persona-card glass rounded-2xl border border-white/8 p-6 text-left space-y-3"
                   >
-                    &ldquo;{prompt}&rdquo;
-                  </span>
+                    <div aria-hidden="true">{icon}</div>
+                    <h3 className="text-base font-semibold text-white">{title}</h3>
+                    <p className="text-sm text-white/70 leading-relaxed">{desc}</p>
+                    <p className="text-xs text-spectra-primary font-medium">{stat}</p>
+                  </div>
                 ))}
+              </div>
+            </div>
+
+            {/* ═══ HOW IT WORKS ═══════════════════════════════════════════ */}
+            <div id="how-it-works" className="w-full stagger-5">
+              <div className="text-center mb-8">
+                <h2 className="text-xl sm:text-2xl font-bold text-white">How it works</h2>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                {[
+                  { step: "1", title: "Press Q", desc: "Connect to Spectra instantly", icon: <svg className="w-6 h-6 mx-auto text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg> },
+                  { step: "2", title: "Press W", desc: "Share your active browser tab", icon: <svg className="w-6 h-6 mx-auto text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg> },
+                  { step: "3", title: "Talk", desc: "Speak naturally in any language", icon: <svg className="w-6 h-6 mx-auto text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4M12 3a4 4 0 014 4v4a4 4 0 01-8 0V7a4 4 0 014-4z" /></svg> },
+                  { step: "4", title: "Done", desc: "Spectra clicks, types, and reads texts", icon: <svg className="w-6 h-6 mx-auto text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 13l4 4L19 7" /></svg> },
+                ].map(({ step, title, desc, icon }) => (
+                  <div key={step} className="relative glass rounded-2xl border border-white/8 p-5 text-center space-y-2">
+                    <div aria-hidden="true">{icon}</div>
+                    <div className="text-xs text-spectra-primary font-bold uppercase tracking-widest pt-1">Step {step}</div>
+                    <h3 className="text-sm font-semibold text-white">{title}</h3>
+                    <p className="text-xs text-white/70 leading-relaxed">{desc}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* ═══ OPEN SOURCE + OFFLINE ══════════════════════════════════ */}
+            <div className="w-full stagger-6">
+              <div className="glass rounded-2xl border border-white/8 p-8 sm:p-10">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
+                  <div className="flex-1 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-green-400 oss-pulse" />
+                      <span className="text-xs text-green-400 font-semibold uppercase tracking-wider">Open Source · Apache 2.0</span>
+                    </div>
+                    <h2 className="text-xl sm:text-2xl font-bold text-white">Fully open. Runs offline.</h2>
+                    <p className="text-sm text-white/80 leading-relaxed max-w-xl">
+                      Spectra is 100% open source. With <span className="text-spectra-primary font-medium">Gemma offline mode</span>,
+                      run the entire stack on your own hardware, no API keys, no cloud, no data leaving your machine.
+                      Perfect for hospitals, schools, and regulated industries.
+                    </p>
+                    <div className="flex flex-wrap items-center gap-3 pt-2">
+                      <a
+                        href="https://github.com/Aqta-ai/spectra"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/8 hover:bg-white/12 border border-white/10 text-sm text-white hover:text-white/90 transition-all"
+                      >
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" /></svg>
+                        View on GitHub
+                      </a>
+                      <span className="flex items-center gap-1.5 text-xs text-white/60">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                        ~8,500 lines of code
+                      </span>
+                      <span className="flex items-center gap-1.5 text-xs text-white/60">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        442 tests
+                      </span>
+                    </div>
+                  </div>
+                  {/* Offline mode badge */}
+                  <div className="flex-shrink-0 glass rounded-xl border border-spectra-primary/20 p-5 text-center space-y-2 min-w-[160px]">
+                    <div className="flex justify-center" aria-hidden="true">
+                      <svg className="w-8 h-8 text-spectra-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                    </div>
+                    <p className="text-sm font-semibold text-white pt-1">Offline mode</p>
+                    <p className="text-xs text-white/50">Gemma 3 + Ollama</p>
+                    <p className="text-xs text-white/35">No API key needed</p>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -868,7 +1075,11 @@ export default function Home() {
                   focus:outline-none focus-visible:outline-4 focus-visible:outline-yellow-400`}
                 aria-label={isActive ? "Stop Spectra (Q)" : "Start Spectra (Q)"}
               >
-                <span className="absolute inset-0 flex items-center justify-center text-white text-xl font-bold select-none" aria-hidden="true">S</span>
+                <span className="absolute inset-0 flex items-center justify-center text-white/90 drop-shadow-sm" aria-hidden="true">
+                  <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
+                  </svg>
+                </span>
               </button>
 
               {/* Waveform , visible only when listening */}
@@ -885,12 +1096,12 @@ export default function Home() {
                 <p className="font-medium text-sm sm:text-base truncate">{statusText}</p>
                 <div className="flex items-center gap-3 mt-1">
                   {/* Mic */}
-                  <span className={`flex items-center gap-1.5 text-xs ${isListening ? "text-green-400" : "text-white/30"}`}>
+                  <span className={`flex items-center gap-1.5 text-xs ${isListening ? "text-green-400" : "text-white/50"}`}>
                     <span className={`w-1.5 h-1.5 rounded-full ${isListening ? "bg-green-400 animate-pulse" : "bg-white/20"}`} />
                     Mic
                   </span>
                   {/* Screen */}
-                  <span className={`flex items-center gap-1.5 text-xs ${isScreenSharing ? "text-green-400" : "text-white/30"}`}>
+                  <span className={`flex items-center gap-1.5 text-xs ${isScreenSharing ? "text-green-400" : "text-white/50"}`}>
                     <span className={`w-1.5 h-1.5 rounded-full ${isScreenSharing ? "bg-green-400 animate-pulse" : "bg-white/20"}`} />
                     Screen
                   </span>
@@ -943,7 +1154,7 @@ export default function Home() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                     </svg>
                   </div>
-                  <p className="text-white/40 text-sm">Speak or type to start the conversation</p>
+                  <p className="text-white/60 text-sm">Speak or type to start the conversation</p>
                 </div>
               )}
 
@@ -962,7 +1173,11 @@ export default function Home() {
                     }`}
                     aria-hidden="true"
                   >
-                    {msg.role === "user" ? "You" : "S"}
+                    {msg.role === "user" ? "You" : (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
+                      </svg>
+                    )}
                   </div>
 
                   {/* Bubble */}
@@ -976,7 +1191,7 @@ export default function Home() {
                     >
                       <p className="whitespace-pre-wrap break-words">{msg.content}</p>
                     </div>
-                    <span className="text-xs text-white/40 px-1">
+                    <span className="text-xs text-white/60 px-1">
                       {new Date(msg.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                     </span>
                   </div>
@@ -993,7 +1208,7 @@ export default function Home() {
                     <div className="px-4 py-3 rounded-2xl rounded-br-sm bg-spectra-primary/30 text-white border border-spectra-primary/20 text-sm">
                       <p className="italic whitespace-pre-wrap break-words">{currentTranscript}</p>
                     </div>
-                    <span className="text-xs text-white/40 px-1">Speaking…</span>
+                    <span className="text-xs text-white/60 px-1">Speaking…</span>
                   </div>
                 </div>
               )}
@@ -1001,7 +1216,11 @@ export default function Home() {
               {/* Streaming response */}
               {currentResponse && (
                 <div className="flex items-end gap-2.5 flex-row animate-slide-up">
-                  <div className="flex-shrink-0 w-7 h-7 rounded-full spectra-orb text-white text-xs font-bold flex items-center justify-center" aria-hidden="true">S</div>
+                  <div className="flex-shrink-0 w-7 h-7 rounded-full spectra-orb text-white text-xs font-bold flex items-center justify-center" aria-hidden="true">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
+                    </svg>
+                  </div>
                   <div className="max-w-[78%] sm:max-w-[72%] items-start flex flex-col gap-1">
                     <div className="px-4 py-3 rounded-2xl rounded-bl-sm bg-white/6 text-white border border-white/8 text-sm">
                       <p className="whitespace-pre-wrap break-words">
@@ -1009,7 +1228,7 @@ export default function Home() {
                         <span className="inline-block w-0.5 h-4 bg-spectra-primary/70 ml-1 animate-pulse align-middle" />
                       </p>
                     </div>
-                    <span className="text-xs text-white/40 px-1">Typing…</span>
+                    <span className="text-xs text-white/60 px-1">Typing…</span>
                   </div>
                 </div>
               )}
@@ -1017,7 +1236,11 @@ export default function Home() {
               {/* Thinking dots */}
               {isThinking && !currentResponse && (
                 <div className="flex items-end gap-2.5 flex-row animate-slide-up">
-                  <div className="flex-shrink-0 w-7 h-7 rounded-full spectra-orb text-white text-xs font-bold flex items-center justify-center" aria-hidden="true">S</div>
+                  <div className="flex-shrink-0 w-7 h-7 rounded-full spectra-orb text-white text-xs font-bold flex items-center justify-center" aria-hidden="true">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
+                    </svg>
+                  </div>
                   <div className="px-4 py-3 rounded-2xl rounded-bl-sm bg-white/6 border border-white/8">
                     <div className="flex items-center gap-1.5" aria-label="Spectra is thinking">
                       <div className="w-2 h-2 bg-spectra-primary/70 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
@@ -1061,7 +1284,7 @@ export default function Home() {
                 />
                 <button
                   onClick={() => inputRef.current && handleSendMessage(inputRef.current.value)}
-                  className="flex-shrink-0 px-3 py-2.5 bg-spectra-primary hover:bg-spectra-primary/80 disabled:opacity-30 disabled:cursor-not-allowed rounded-lg transition-all text-white"
+                  className="flex-shrink-0 px-3 py-2.5 bg-spectra-primary hover:bg-white/20 disabled:opacity-30 disabled:cursor-not-allowed rounded-lg transition-all text-white"
                   disabled={!isConnected}
                   aria-label="Send message"
                 >
@@ -1081,17 +1304,35 @@ export default function Home() {
       </main>
 
       {/* ── Footer ─────────────────────────────────────────────────────────── */}
-      <footer className="px-4 sm:px-6 py-4 text-center text-xs text-white/30">
-        Spectra
-        {" · "}
-        <a href="/guide" className="hover:text-white/50 transition-colors">Guide</a>
-        {" · "}
-        <a href="/privacy" className="hover:text-white/50 transition-colors">Privacy</a>
-        {" · "}
-        <a href="/overlay" className="hover:text-white/50 transition-colors">Overlay</a>
-        {" · "}
-        <a href="https://github.com/Aqta-ai/spectra" target="_blank" rel="noopener noreferrer" className="hover:text-white/50 transition-colors">GitHub</a>
-        {" · Apache 2.0"}
+      <footer className="px-4 sm:px-6 py-8 border-t border-white/5">
+        <div className="max-w-5xl mx-auto space-y-6">
+          {/* Feature capsules */}
+          <div className="flex flex-wrap justify-center gap-3 text-xs">
+            {[
+              "Voice first", "Screen vision", "Hands-free",
+              "Wake word", "Barge-in", "Zero data stored", "WCAG 2.1 AA",
+              "Open source", "Offline capable",
+            ].map((label) => (
+              <span key={label} className="px-3 py-1.5 rounded-full border border-white/12 bg-white/5 text-white/50 hover:text-white/80 hover:border-white/20 transition-colors">
+                {label}
+              </span>
+            ))}
+          </div>
+          {/* Links row */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-white/50">
+            <div className="flex items-center gap-1.5">
+              <img src="/icon512.png" alt="" aria-hidden="true" className="w-4 h-4 opacity-40" />
+              <span>Spectra · Apache 2.0</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <a href="/guide" className="hover:text-white/50 transition-colors">Guide</a>
+              <a href="/privacy" className="hover:text-white/50 transition-colors">Privacy</a>
+              <a href="/overlay" className="hover:text-white/50 transition-colors">Overlay</a>
+              <a href="https://github.com/Aqta-ai/spectra" target="_blank" rel="noopener noreferrer" className="hover:text-white/50 transition-colors">GitHub</a>
+            </div>
+            <span className="text-white/60">Built by <a href="https://github.com/Aqta-ai" target="_blank" rel="noopener noreferrer" className="text-white hover:text-white/80 transition-colors font-medium">Aqta</a></span>
+          </div>
+        </div>
       </footer>
 
       {/*

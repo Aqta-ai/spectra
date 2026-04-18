@@ -6,13 +6,13 @@ const config: Config = {
     extend: {
       colors: {
         spectra: {
-          primary:   "#6C5CE7",
-          secondary: "#A29BFE",
-          dark:      "#0F0E17",
-          surface:   "#1A1A2E",
-          text:      "#FFFFFE",
-          muted:     "#94A1B2",
-          bg:        "#0f172a",
+          primary:   "#6B5CE7", // Purple (main theme)
+          secondary: "#6B5CE7", // Purple (consistent)
+          dark:      "#030305",
+          surface:   "#0F0E17",
+          text:      "#FAFAFA",
+          muted:     "#8C8C99",
+          bg:        "#050508",
         },
       },
       keyframes: {
@@ -23,13 +23,13 @@ const config: Config = {
         },
         // Intense pulse for active listening
         "orb-listen": {
-          "0%, 100%": { transform: "scale(1)",    boxShadow: "0 0 0 0 rgba(108,92,231,0.5)" },
-          "50%":      { transform: "scale(1.1)",  boxShadow: "0 0 0 28px rgba(108,92,231,0)" },
+          "0%, 100%": { transform: "scale(1)",    boxShadow: "0 0 0 0 rgba(0, 229, 255, 0.5)" },
+          "50%":      { transform: "scale(1.1)",  boxShadow: "0 0 0 28px rgba(0, 229, 255, 0)" },
         },
         // Orb pulse for Spectra speaking
         "orb-speak": {
-          "0%, 100%": { transform: "scale(1)",    boxShadow: "0 0 0 0 rgba(162,155,254,0.5)" },
-          "50%":      { transform: "scale(1.12)", boxShadow: "0 0 0 28px rgba(162,155,254,0)" },
+          "0%, 100%": { transform: "scale(1)",    boxShadow: "0 0 0 0 rgba(176, 38, 255, 0.5)" },
+          "50%":      { transform: "scale(1.12)", boxShadow: "0 0 0 28px rgba(176, 38, 255, 0)" },
         },
         // Waveform bar (staggered by delay)
         wave: {

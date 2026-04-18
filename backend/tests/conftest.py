@@ -1,6 +1,7 @@
 """Pytest configuration and shared fixtures."""
 
 import sys
+import logging
 from pathlib import Path
 
 # Add backend directory to Python path so 'app' module can be imported
@@ -11,11 +12,27 @@ if str(backend_dir) not in sys.path:
 import pytest
 from unittest.mock import patch, MagicMock
 
+logger = logging.getLogger(__name__)
+
+
+@pytest.fixture(scope="session")
+def use_live_api():
+    """Check if we should use live API (set USE_LIVE_API=1 for production tests)."""
+    import os
+    return os.getenv("USE_LIVE_API", "").lower() == "1"
+
 
 @pytest.fixture(autouse=True)
-def mock_gemini_for_all_tests():
-    """Mock Gemini client globally to avoid authentication issues in tests."""
-    with patch('app.streaming.session.genai.Client') as mock_client:
+def mock_gemini_for_all_tests(use_live_api):
+    """Mock Gemini client for dev/CI tests. Use real API when USE_LIVE_API=1 (production)."""
+    if use_live_api:
+        # Production: use real API with actual credentials
+        logger.info("✓ Using LIVE Gemini API (production mode)")
+        yield None  # No mocking
+        return
+
+    # Dev/CI: use mocks
+    with patch('google.genai.Client') as mock_client:
         mock_instance = MagicMock()
         mock_client.return_value = mock_instance
 
