@@ -71,9 +71,13 @@ app.add_middleware(
 
 @app.get("/api/system-info")
 async def system_info():
-    """Return system configuration info."""
+    """Return system configuration info (provider type, offline mode, etc.)."""
+    provider_type = os.getenv("SPECTRA_PROVIDER", "gemini").lower()
+    offline_mode = provider_type in ("local_audio", "local", "audio", "gemma", "ollama")
+
     return {
-        "provider": "gemini",
+        "provider": provider_type,
+        "offline_mode": offline_mode,
         "version": "1.0.0",
     }
 
