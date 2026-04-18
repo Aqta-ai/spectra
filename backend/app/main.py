@@ -82,6 +82,36 @@ async def system_info():
     }
 
 
+@app.post("/api/switch-provider")
+async def switch_provider(new_provider: str):
+    """Switch between Gemini and Ollama providers (updates .env and restarts backend)."""
+    if new_provider not in ("gemini", "ollama"):
+        return {"error": "Invalid provider. Use 'gemini' or 'ollama'.", "status": 400}
+
+    # Update .env file
+    env_file = os.path.join(os.path.dirname(__file__), "..", ".env")
+    try:
+        with open(env_file, "r") as f:
+            lines = f.readlines()
+
+        with open(env_file, "w") as f:
+            for line in lines:
+                if line.startswith("SPECTRA_PROVIDER="):
+                    f.write(f"SPECTRA_PROVIDER={new_provider}\n")
+                else:
+                    f.write(line)
+
+        os.environ["SPECTRA_PROVIDER"] = new_provider
+        return {
+            "status": "ok",
+            "provider": new_provider,
+            "message": "Provider switched. Refresh your browser to reconnect.",
+        }
+    except Exception as e:
+        logger.error(f"Failed to switch provider: {e}")
+        return {"error": str(e), "status": 500}
+
+
 @app.get("/health")
 async def health():
     from app.performance_monitor import get_performance_monitor

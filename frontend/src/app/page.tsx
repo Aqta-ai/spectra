@@ -707,19 +707,41 @@ export default function Home() {
               )}
             </div>
 
-            {/* Provider indicator: shows which backend is active */}
-            <div className={`flex items-center gap-1.5 text-xs ${
-              provider === 'ollama'
-                ? 'text-violet-400/70'
-                : 'text-sky-400/70'
-            }`} title={`Running ${provider === 'ollama' ? 'Ollama (local Gemma 4)' : 'Gemini Live API'}`}>
+            {/* Provider toggle: click to switch between Gemini and Ollama */}
+            <button
+              onClick={async () => {
+                const newProvider = provider === 'gemini' ? 'ollama' : 'gemini';
+                try {
+                  const res = await fetch('/api/switch-provider', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ new_provider: newProvider }),
+                  });
+                  if (res.ok) {
+                    announceAssertive(`Switching to ${newProvider}. Reconnecting...`);
+                    setTimeout(() => window.location.reload(), 1000);
+                  } else {
+                    announceAssertive('Failed to switch provider');
+                  }
+                } catch (err) {
+                  console.error('Provider switch error:', err);
+                  announceAssertive('Error switching provider');
+                }
+              }}
+              className={`flex items-center gap-1.5 text-xs px-2 py-1 rounded transition-all cursor-pointer hover:opacity-80 ${
+                provider === 'ollama'
+                  ? 'bg-violet-400/10 text-violet-300 hover:bg-violet-400/20'
+                  : 'bg-sky-400/10 text-sky-300 hover:bg-sky-400/20'
+              }`}
+              title={`Click to switch to ${provider === 'gemini' ? 'Ollama (local)' : 'Gemini Live'}`}
+            >
               <span className={`w-1.5 h-1.5 rounded-full ${
                 provider === 'ollama'
                   ? 'bg-violet-400'
                   : 'bg-sky-400'
               }`} />
-              <span className="hidden sm:inline capitalize">{provider}</span>
-            </div>
+              <span className="hidden sm:inline capitalize text-xs font-medium">{provider}</span>
+            </button>
 
             <a
               href="#features"
