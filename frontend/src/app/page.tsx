@@ -250,9 +250,19 @@ export default function Home() {
     extensionBannerTimerRef.current = setTimeout(() => setShowExtensionBanner(true), 2000);
 
     // Fetch system info to detect offline mode
-    fetch("http://localhost:8080/api/system-info").then(r => r.json()).then(info => {
-      if (info?.offline_mode) setOfflineMode(true);
-    }).catch(() => {/* silently fail if endpoint doesn't exist */});
+    const backendUrl = process.env.NEXT_PUBLIC_WS_URL ?
+      process.env.NEXT_PUBLIC_WS_URL.replace('/ws', '') :
+      "http://localhost:8080";
+    const systemInfoUrl = backendUrl.replace('ws://', 'http://').replace('wss://', 'https://') + "/api/system-info";
+
+    fetch(systemInfoUrl).then(r => r.json()).then(info => {
+      if (info?.offline_mode) {
+        console.log("[Spectra] Offline mode detected:", info);
+        setOfflineMode(true);
+      }
+    }).catch((err) => {
+      console.log("[Spectra] Could not fetch system info:", err.message);
+    });
 
     return () => {
       clearInterval(id);
