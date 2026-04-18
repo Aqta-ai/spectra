@@ -150,13 +150,31 @@ export function useAudioStream({ onAudioChunk }: AudioStreamOptions) {
     streamRef.current = null;
   }, []);
 
+  const forcedUnmuteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const muteMic = useCallback(() => {
     mutedRef.current = true;
     mutedAtRef.current = Date.now();
+
+    // Force-unmute after 5 seconds (if turn_complete missed, something went wrong)
+    if (forcedUnmuteTimerRef.current) clearTimeout(forcedUnmuteTimerRef.current);
+    forcedUnmuteTimerRef.current = setTimeout(() => {
+      if (mutedRef.current) {
+        console.warn('[AudioStream] Force-unmuting after 5s (turn_complete may be missing)');
+        mutedRef.current = false;
+        mutedAtRef.current = null;
+      }
+    }, 5000);
   }, []);
+
   const unmuteMic = useCallback(() => {
     mutedRef.current = false;
     mutedAtRef.current = null;
+    // Clear force-unmute timer since we're unmuting normally
+    if (forcedUnmuteTimerRef.current) {
+      clearTimeout(forcedUnmuteTimerRef.current);
+      forcedUnmuteTimerRef.current = null;
+    }
   }, []);
 
   return { startMic, stopMic, muteMic, unmuteMic };
