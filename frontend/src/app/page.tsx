@@ -318,14 +318,11 @@ export default function Home() {
   const { connect, disconnect, sendAudio, sendText, sendFrame, isConnected } = useSpectraSocket({
     onText: (text) => {
       const cleaned = stripThinking(text);
-      if (cleaned) setCurrentResponse((prev) => prev + cleaned);
-      setIsThinking(false);
-
-      // For offline mode, speak the response as it arrives
-      if (offlineMode && cleaned) {
-        // Only speak once at the end when we have full response
-        // This prevents fragmented speech - we'll accumulate chunks and speak at turn_complete
+      if (cleaned) {
+        console.log("[Spectra] Got response text:", cleaned.substring(0, 50));
+        setCurrentResponse((prev) => prev + cleaned);
       }
+      setIsThinking(false);
     },
     onTranscript: (text) => {
       const trimmed = text.trim();
@@ -422,6 +419,7 @@ export default function Home() {
       if (currentResponse.trim()) {
         const finalText = stripThinking(currentResponse);
         if (finalText.trim()) {
+          console.log("[Spectra] Turn complete, final response:", finalText.substring(0, 50));
           setMessages((prev) => {
             const next = [...prev, { role: "assistant" as const, content: finalText, timestamp: Date.now() }];
             return next.length > MAX_MESSAGES ? next.slice(-MAX_MESSAGES) : next;
@@ -430,10 +428,13 @@ export default function Home() {
 
           // For offline mode, speak the response using Web Speech API
           if (offlineMode) {
+            console.log("[Spectra] Calling speakResponse for offline mode");
             speakResponse(finalText);
           }
         }
         setCurrentResponse("");
+      } else {
+        console.log("[Spectra] No response text to announce");
       }
       setIsThinking(false);
       setStatusText(isActive ? "Listening…" : "Press Q or say “Hey Spectra”");
