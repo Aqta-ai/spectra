@@ -152,6 +152,7 @@ export default function Home() {
   const [politeAnnouncement, setPoliteAnnouncement] = useState("");
   const [extensionReady, setExtensionReady] = useState(false);
   const [showExtensionBanner, setShowExtensionBanner] = useState(false);
+  const [provider, setProvider] = useState<string>("gemini");
 
   // Typing effect for demo commands
   const DEMO_COMMANDS = [
@@ -235,6 +236,22 @@ export default function Home() {
   const announcePolite = useCallback((msg: string) => {
     setPoliteAnnouncement("");
     requestAnimationFrame(() => setPoliteAnnouncement(msg));
+  }, []);
+
+  // Fetch provider info from backend
+  useEffect(() => {
+    const fetchProvider = async () => {
+      try {
+        const res = await fetch('/api/system-info');
+        if (res.ok) {
+          const info: SystemInfo = await res.json();
+          setProvider(info.provider || 'gemini');
+        }
+      } catch (err) {
+        console.debug('Could not fetch provider info:', err);
+      }
+    };
+    fetchProvider();
   }, []);
 
   useEffect(() => {
@@ -691,9 +708,17 @@ export default function Home() {
             </div>
 
             {/* Provider indicator: shows which backend is active */}
-            <div className="flex items-center gap-1.5 text-xs text-blue-400/70" title="Backend provider (set via SPECTRA_PROVIDER env var)">
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
-              <span className="hidden sm:inline">Provider</span>
+            <div className={`flex items-center gap-1.5 text-xs ${
+              provider === 'ollama'
+                ? 'text-violet-400/70'
+                : 'text-sky-400/70'
+            }`} title={`Running ${provider === 'ollama' ? 'Ollama (local Gemma 4)' : 'Gemini Live API'}`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${
+                provider === 'ollama'
+                  ? 'bg-violet-400'
+                  : 'bg-sky-400'
+              }`} />
+              <span className="hidden sm:inline capitalize">{provider}</span>
             </div>
 
             <a
