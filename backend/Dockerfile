@@ -9,13 +9,8 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Piper TTS (optional — will download on first use if not cached)
-# For offline/Docker builds, pre-cache the voice model:
-# Docker build --build-arg PIPER_VOICE=en_US-amy-medium ...
-ARG PIPER_VOICE=en_US-amy-medium
-RUN curl -sSL https://github.com/rhasspy/piper/releases/download/2024.08.01/piper_linux_x86_64.tar.gz \
-    | tar xzf - -C /usr/local/bin && \
-    chmod +x /usr/local/bin/piper
+# Note: Piper TTS only needed for offline mode (private repo)
+# Public Gemini-only repo doesn't require it
 
 # Copy requirements first for better caching
 COPY requirements.txt .
