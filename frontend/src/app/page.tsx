@@ -5,6 +5,7 @@ import { useSpectraSocket } from "@/hooks/useSpectraSocket";
 import { useAudioStream } from "@/hooks/useAudioStream";
 import { useScreenCapture } from "@/hooks/useScreenCapture";
 import { useVoiceActivation } from "@/hooks/useVoiceActivation";
+import { useOllamaAudio } from "@/hooks/useOllamaAudio";
 import { useOnboarding } from "@/hooks/useOnboarding";
 import { useFeedback } from "@/hooks/useFeedback";
 import { ActionExecutor } from "@/lib/actionExecutor";
@@ -310,6 +311,12 @@ export default function Home() {
       const cleaned = stripThinking(text);
       if (cleaned) setCurrentResponse((prev) => prev + cleaned);
       setIsThinking(false);
+
+      // For offline mode, speak the response as it arrives
+      if (offlineMode && cleaned) {
+        // Only speak once at the end when we have full response
+        // This prevents fragmented speech - we'll accumulate chunks and speak at turn_complete
+      }
     },
     onTranscript: (text) => {
       const trimmed = text.trim();
@@ -411,6 +418,11 @@ export default function Home() {
             return next.length > MAX_MESSAGES ? next.slice(-MAX_MESSAGES) : next;
           });
           announcePolite(finalText);
+
+          // For offline mode, speak the response using Web Speech API
+          if (offlineMode) {
+            speakResponse(finalText);
+          }
         }
         setCurrentResponse("");
       }
@@ -479,6 +491,42 @@ export default function Home() {
     onActivate: () => { handleStart(); },
   });
 
+  // Ollama audio pipeline (voice input/output for offline mode)
+  const { startListening: startOllamaListening, speakResponse } = useOllamaAudio({
+    enabled: offlineMode && isConnected,
+    offlineMode,
+    isActive,
+    onTranscript: (text) => {
+      // For offline mode, we handle transcripts from Web Speech API
+      const trimmed = text.trim();
+      if (!trimmed || trimmed.length <= 1) return;
+      setCurrentTranscript(trimmed);
+    },
+    onSendText: (text) => {
+      // User finished speaking - send text to Ollama backend
+      if (text.trim()) {
+        sendText(text);
+        setMessages((prev) => {
+          const next = [...prev, { role: "user" as const, content: text, timestamp: Date.now() }];
+          return next.length > MAX_MESSAGES ? next.slice(-MAX_MESSAGES) : next;
+        });
+        setCurrentTranscript("");
+        setIsThinking(true);
+        announcePolite(`You said: ${text}. Spectra is thinking…`);
+      }
+    },
+    onResponseStart: () => {
+      setIsSpeaking(true);
+    },
+    onResponseEnd: () => {
+      setIsSpeaking(false);
+      // After response finishes, resume listening if still active
+      if (offlineMode && isActive) {
+        setTimeout(() => startOllamaListening(), 500);
+      }
+    },
+  });
+
   const handleFullStop = useCallback(() => {
     setIsActive(false);
     setIsListening(false);
@@ -506,8 +554,16 @@ export default function Home() {
         audioPlayerRef.current.warmup();
       }
       await connect();
-      await startMic();
-      unmuteMic(); // safety: clear any mute left from a broken previous turn
+
+      if (offlineMode) {
+        // Ollama mode: use Web Speech API for voice input
+        startOllamaListening();
+      } else {
+        // Gemini Live mode: use PCM audio stream
+        await startMic();
+        unmuteMic(); // safety: clear any mute left from a broken previous turn
+      }
+
       setIsListening(true);
       setIsActive(true);
       setStatusText("Listening...");
@@ -517,7 +573,7 @@ export default function Home() {
       announceAssertive("Failed to start Spectra. Please check microphone permissions.");
       handleFullStop();
     }
-  }, [isActive, connect, startMic, unmuteMic, handleFullStop, announceAssertive]);
+  }, [isActive, connect, offlineMode, startMic, unmuteMic, startOllamaListening, handleFullStop, announceAssertive]);
 
   const handleStop = useCallback(() => {
     if (!isActive) return;
