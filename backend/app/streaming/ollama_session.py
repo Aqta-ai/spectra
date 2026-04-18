@@ -128,64 +128,80 @@ class OllamaStreamingSession:
             if len(self._message_history) > 40:
                 self._message_history = self._message_history[-40:]
 
-            # Send to Ollama and stream response
+            # Send to Ollama and stream response with retry logic
             logger.info(f"[Ollama] Processing: {user_text[:100]}...")
             response_text = ""
 
-            chunk_count = 0
-            async for chunk in self.ollama.generate_stream(
-                system=SPECTRA_SYSTEM_INSTRUCTION,
-                messages=self._message_history,
-            ):
-                chunk_count += 1
-                if chunk.get("error"):
-                    error_msg = chunk.get("error")
-                    logger.error(f"[Ollama] Generation error: {error_msg}")
-                    await self.websocket.send_json({
-                        "type": "error",
-                        "error": f"Generation failed: {error_msg}",
-                    })
-                    return
+            # Retry up to 2 times on stream error (Ollama may be restarting)
+            for attempt in range(1, 3):
+                try:
+                    chunk_count = 0
+                    async for chunk in self.ollama.generate_stream(
+                        system=SPECTRA_SYSTEM_INSTRUCTION,
+                        messages=self._message_history,
+                    ):
+                        chunk_count += 1
+                        if chunk.get("error"):
+                            error_msg = chunk.get("error")
+                            logger.error(f"[Ollama] Generation error (attempt {attempt}): {error_msg}")
+                            # If first attempt failed, retry once
+                            if attempt < 2 and "connection" in str(error_msg).lower():
+                                logger.info(f"[Ollama] Retrying after connection error...")
+                                await asyncio.sleep(1)
+                                break  # Break inner loop to retry
+                            else:
+                                # Permanent error or second attempt failed
+                                await self.websocket.send_json({
+                                    "type": "error",
+                                    "error": f"Generation failed: {error_msg}",
+                                })
+                                return
 
-                text_chunk = chunk.get("text", "")
-                if text_chunk:
-                    # Accumulate response
-                    response_text += text_chunk
-                    logger.debug(f"[Ollama] Chunk {chunk_count}: {repr(text_chunk[:50])}")
+                        text_chunk = chunk.get("text", "")
+                        if text_chunk:
+                            # Accumulate response
+                            response_text += text_chunk
+                            logger.debug(f"[Ollama] Chunk {chunk_count}: {repr(text_chunk[:50])}")
 
-                    # Send chunk to client (stream incrementally)
-                    try:
-                        await self.websocket.send_json({
-                            "type": "transcript",
-                            "text": text_chunk,
-                            "final": False,
-                        })
-                    except Exception as e:
-                        logger.error(f"[Ollama] Failed to send chunk to client: {e}")
-                        break
+                            # Send chunk to client (stream incrementally)
+                            try:
+                                await self.websocket.send_json({
+                                    "type": "transcript",
+                                    "text": text_chunk,
+                                    "final": False,
+                                })
+                            except Exception as e:
+                                logger.error(f"[Ollama] Failed to send chunk to client: {e}")
+                                break
 
-                if chunk.get("done"):
-                    logger.info(f"[Ollama] Generation complete ({chunk_count} chunks, {len(response_text)} chars)")
-                    # Final cleanup and store in history
-                    response_text = remove_narration(response_text)
-                    response_text = postprocess_spectra_reply(response_text)
-                    self._message_history.append({"role": "assistant", "content": response_text})
+                        if chunk.get("done"):
+                            logger.info(f"[Ollama] Generation complete ({chunk_count} chunks, {len(response_text)} chars)")
+                            # Final cleanup and store in history
+                            response_text = remove_narration(response_text)
+                            response_text = postprocess_spectra_reply(response_text)
+                            self._message_history.append({"role": "assistant", "content": response_text})
 
-                    # Send final marker
-                    try:
-                        await self.websocket.send_json({
-                            "type": "transcript",
-                            "text": "",
-                            "final": True,
-                        })
-                    except Exception as e:
-                        logger.error(f"[Ollama] Failed to send final marker: {e}")
+                            # Send final marker
+                            try:
+                                await self.websocket.send_json({
+                                    "type": "transcript",
+                                    "text": "",
+                                    "final": True,
+                                })
+                            except Exception as e:
+                                logger.error(f"[Ollama] Failed to send final marker: {e}")
 
-                    logger.debug(f"[Ollama] Response: {response_text[:100]}...")
-                    break
-
-        except Exception as e:
-            logger.error(f"[Ollama] Error processing message: {e}", exc_info=True)
+                            logger.debug(f"[Ollama] Response: {response_text[:100]}...")
+                            return  # Success — exit retry loop
+                except Exception as e:
+                    # Connection error — try again
+                    if attempt < 2 and isinstance(e, (ConnectionError, asyncio.TimeoutError)):
+                        logger.warning(f"[Ollama] Connection error on attempt {attempt}, retrying...")
+                        await asyncio.sleep(1)
+                        continue
+                    else:
+                        # Permanent error or last attempt failed
+                        logger.error(f"[Ollama] Error processing message (attempt {attempt}): {e}", exc_info=True)
             await self.websocket.send_json({
                 "type": "error",
                 "error": str(e),

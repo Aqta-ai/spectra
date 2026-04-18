@@ -290,7 +290,8 @@ class SpectraStreamingSession:
         self._client_disconnected: bool = False
         
         # Extension availability — set by extension_status message from frontend
-        self._extension_available: bool = False
+        # Restore from persistent session state so it survives reconnects
+        self._extension_available: bool = getattr(self.session_state, 'extension_available', False)
         
         # Frame similarity detection for response time optimization (Task 8.4)
         self._previous_frame_hash: str | None = None
@@ -973,6 +974,8 @@ class SpectraStreamingSession:
                 elif msg_type == "extension_status":
                     available = msg.get("available", False)
                     self._extension_available = available
+                    # Persist to session state so it survives reconnects
+                    self.session_state.extension_available = available
                     logger.info(f"Extension status: {'available' if available else 'NOT available'}")
                     if self.gemini_session and self._running:
                         try:
