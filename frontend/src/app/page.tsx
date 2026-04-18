@@ -508,14 +508,9 @@ export default function Home() {
       }
       await connect();
 
-      if (offlineMode) {
-        // Ollama mode: use Web Speech API for voice input
-        startOllamaListening();
-      } else {
-        // Gemini Live mode: use PCM audio stream
-        await startMic();
-        unmuteMic(); // safety: clear any mute left from a broken previous turn
-      }
+      // Gemini Live mode: use PCM audio stream
+      await startMic();
+      unmuteMic(); // safety: clear any mute left from a broken previous turn
 
       setIsListening(true);
       setIsActive(true);
@@ -526,7 +521,7 @@ export default function Home() {
       announceAssertive("Failed to start Spectra. Please check microphone permissions.");
       handleFullStop();
     }
-  }, [isActive, connect, offlineMode, startMic, unmuteMic, startOllamaListening, handleFullStop, announceAssertive]);
+  }, [isActive, connect, startMic, unmuteMic, handleFullStop, announceAssertive]);
 
   const handleStop = useCallback(() => {
     if (!isActive) return;
@@ -1272,7 +1267,7 @@ export default function Home() {
                 <input
                   ref={inputRef}
                   type="text"
-                  placeholder={isConnected ? (offlineMode ? "Speak or type here…" : "Type a message…") : "Press Q to connect"}
+                  placeholder={isConnected ? "Type a message…" : "Press Q to connect"}
                   className="flex-1 px-3 py-2.5 bg-transparent border-none focus:outline-none text-white placeholder-white/30 text-sm"
                   disabled={!isConnected}
                   onKeyDown={(e) => {
