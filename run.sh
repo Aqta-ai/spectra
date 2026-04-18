@@ -32,17 +32,18 @@ if ! command -v node &>/dev/null; then
 fi
 echo "  ✓ Node.js found ($(node --version))"
 
-# Check API key configuration
+# Check API key/auth configuration
 if [ -f "backend/.env" ]; then
-    if grep -q "GOOGLE_API_KEY=" backend/.env && ! grep -q "GOOGLE_API_KEY=$" backend/.env && ! grep -q "GOOGLE_API_KEY=\"\"" backend/.env; then
-        echo "  ✓ API key configured"
+    if grep -q "GOOGLE_CLOUD_PROJECT=" backend/.env || grep -q "GOOGLE_API_KEY=" backend/.env; then
+        echo "  ✓ API credentials configured"
     else
-        echo -e "${YELLOW}⚠️  GOOGLE_API_KEY not set in backend/.env${NC}"
-        echo "     Add your Google AI Studio API key to backend/.env"
+        echo -e "${YELLOW}⚠️  GOOGLE_CLOUD_PROJECT or GOOGLE_API_KEY not set in backend/.env${NC}"
+        echo "     Option A: gcloud auth application-default login  (Vertex AI — recommended)"
+        echo "     Option B: Add GOOGLE_API_KEY to backend/.env  (Google AI Studio)"
     fi
 else
     echo -e "${RED}❌ backend/.env not found${NC}"
-    echo "   cp backend/.env.example backend/.env  — then add your GOOGLE_API_KEY"
+    echo "   cp backend/.env.example backend/.env  — then configure credentials"
     exit 1
 fi
 
