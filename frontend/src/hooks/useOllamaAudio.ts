@@ -59,6 +59,7 @@ export function useOllamaAudio(options: OllamaAudioOptions) {
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const transcript = event.results[i][0].transcript;
         if (event.results[i].isFinal) {
+          console.log("[OllamaAudio] Got final:", transcript);
           interimTranscript += transcript + " ";
         } else {
           interim += transcript;
@@ -66,8 +67,10 @@ export function useOllamaAudio(options: OllamaAudioOptions) {
       }
 
       const fullTranscript = interimTranscript + interim;
-      setTranscriptText(fullTranscript);
-      onTranscript(fullTranscript);
+      if (fullTranscript) {
+        setTranscriptText(fullTranscript);
+        onTranscript(fullTranscript);
+      }
     };
 
     recognition.onerror = (event: any) => {
@@ -77,14 +80,16 @@ export function useOllamaAudio(options: OllamaAudioOptions) {
 
     recognition.onend = () => {
       isListeningRef.current = false;
-      console.log("[OllamaAudio] Listening stopped");
+      console.log("[OllamaAudio] Listening stopped, transcript:", interimTranscript.trim() || "(empty)");
 
       // If we got final transcript, send it
       if (interimTranscript.trim()) {
-        console.log("[OllamaAudio] Final transcript:", interimTranscript.trim());
+        console.log("[OllamaAudio] Sending final transcript:", interimTranscript.trim());
         onSendText(interimTranscript.trim());
         interimTranscript = "";
         setTranscriptText("");
+      } else {
+        console.warn("[OllamaAudio] No transcript captured - check microphone permissions");
       }
     };
 
