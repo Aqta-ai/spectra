@@ -154,7 +154,6 @@ export default function Home() {
   const [extensionReady, setExtensionReady] = useState(false);
   const [showExtensionBanner, setShowExtensionBanner] = useState(false);
   const [offlineMode, setOfflineMode] = useState(false);
-  const [showModeSelector, setShowModeSelector] = useState(false);
 
   // Typing effect for demo commands
   const DEMO_COMMANDS = [
@@ -255,30 +254,13 @@ export default function Home() {
     if (savedMode === 'offline') {
       setOfflineMode(true);
       console.log("[Spectra] Using offline mode (from localStorage)");
-      setShowModeSelector(false);
     } else if (savedMode === 'gemini') {
       setOfflineMode(false);
       console.log("[Spectra] Using Gemini Live (from localStorage)");
-      setShowModeSelector(false);
     } else {
-      // No saved preference - show selector on first load
-      const backendUrl = process.env.NEXT_PUBLIC_WS_URL ?
-        process.env.NEXT_PUBLIC_WS_URL.replace('/ws', '') :
-        "http://localhost:8080";
-      const systemInfoUrl = backendUrl.replace('ws://', 'http://').replace('wss://', 'https://') + "/api/system-info";
-
-      fetch(systemInfoUrl).then(r => r.json()).then(info => {
-        if (info?.offline_mode) {
-          console.log("[Spectra] Backend supports offline mode");
-          setShowModeSelector(true); // Show selector if offline available
-        } else {
-          setOfflineMode(false);
-          console.log("[Spectra] Using Gemini Live mode");
-        }
-      }).catch((err) => {
-        console.log("[Spectra] Could not fetch system info:", err.message);
-        setShowModeSelector(false);
-      });
+      // Default to Gemini Live (primary mode for hackathon)
+      setOfflineMode(false);
+      console.log("[Spectra] Defaulting to Gemini Live mode");
     }
 
     return () => {
@@ -749,57 +731,47 @@ export default function Home() {
               )}
             </div>
 
-            {/* Mode selector */}
-            <div className="relative">
-              <button
-                onClick={() => setShowModeSelector(!showModeSelector)}
-                className={`text-xs px-2.5 py-1 rounded-full font-medium transition-all ${
-                  offlineMode
-                    ? "bg-purple-500/20 border border-purple-500/40 text-purple-300 hover:bg-purple-500/30"
-                    : "bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-500/30"
-                }`}
-                title={offlineMode ? "Click to switch to Gemini Live" : "Click to switch to Offline Mode"}
-              >
-                {offlineMode ? "🟣 Offline" : "🔵 Gemini Live"}
-              </button>
-
-              {/* Dropdown menu */}
-              {showModeSelector && (
-                <div className="absolute right-0 top-full mt-2 bg-white/10 backdrop-blur border border-white/20 rounded-lg shadow-lg z-50 min-w-48">
-                  <button
-                    onClick={() => {
+            {/* Provider toggle switch */}
+            <div className="flex items-center gap-3 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10">
+              <span className="text-xs font-medium text-white/70">Provider:</span>
+              <div className="flex items-center gap-1 bg-white/10 rounded-md p-0.5">
+                {/* Gemini Live button */}
+                <button
+                  onClick={() => {
+                    if (offlineMode) {
                       setOfflineMode(false);
                       localStorage.setItem('spectra_mode', 'gemini');
-                      setShowModeSelector(false);
-                      window.location.reload(); // Reload to switch providers
-                    }}
-                    className={`block w-full text-left px-4 py-2.5 text-sm ${
-                      !offlineMode
-                        ? "bg-cyan-500/20 text-cyan-200 font-medium"
-                        : "text-white/70 hover:text-white hover:bg-white/5"
-                    } transition-colors border-b border-white/10`}
-                  >
-                    <div className="font-semibold">🔵 Gemini Live</div>
-                    <div className="text-xs text-white/50">Fast (1s), high quality, requires API key</div>
-                  </button>
-                  <button
-                    onClick={() => {
+                      window.location.reload();
+                    }
+                  }}
+                  className={`px-3 py-1 text-xs font-medium rounded transition-all ${
+                    !offlineMode
+                      ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg"
+                      : "text-white/60 hover:text-white/80"
+                  }`}
+                  title="Gemini Live API - Fast, high quality"
+                >
+                  Gemini Live
+                </button>
+                {/* Offline button */}
+                <button
+                  onClick={() => {
+                    if (!offlineMode) {
                       setOfflineMode(true);
                       localStorage.setItem('spectra_mode', 'offline');
-                      setShowModeSelector(false);
-                      window.location.reload(); // Reload to switch providers
-                    }}
-                    className={`block w-full text-left px-4 py-2.5 text-sm ${
-                      offlineMode
-                        ? "bg-purple-500/20 text-purple-200 font-medium"
-                        : "text-white/70 hover:text-white hover:bg-white/5"
-                    } transition-colors`}
-                  >
-                    <div className="font-semibold">🟣 Offline Mode</div>
-                    <div className="text-xs text-white/50">Local (23s), private, no API key needed</div>
-                  </button>
-                </div>
-              )}
+                      window.location.reload();
+                    }
+                  }}
+                  className={`px-3 py-1 text-xs font-medium rounded transition-all ${
+                    offlineMode
+                      ? "bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-lg"
+                      : "text-white/60 hover:text-white/80"
+                  }`}
+                  title="Offline mode - Ollama + Gemma 4"
+                >
+                  Offline
+                </button>
+              </div>
             </div>
 
             {/* Extension status — with install CTA when missing */}
