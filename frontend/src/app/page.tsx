@@ -242,7 +242,8 @@ export default function Home() {
   useEffect(() => {
     const fetchProvider = async () => {
       try {
-        const res = await fetch('/api/system-info');
+        const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+        const res = await fetch(`${backendUrl}/api/system-info`);
         if (res.ok) {
           const info: SystemInfo = await res.json();
           setProvider(info.provider || 'gemini');
@@ -713,7 +714,8 @@ export default function Home() {
                 setStatusText('Switching provider...');
                 const newProvider = provider === 'gemini' ? 'ollama' : 'gemini';
                 try {
-                  const res = await fetch('/api/switch-provider', {
+                  const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+                  const res = await fetch(`${backendUrl}/api/switch-provider`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ new_provider: newProvider }),
