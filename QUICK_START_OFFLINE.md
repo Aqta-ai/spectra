@@ -130,4 +130,11 @@ curl -X POST http://localhost:8000/api/switch-provider \
 
 ---
 
+## Credits
+
+- **[Ollama](https://github.com/ollama/ollama)** — Local LLM engine
+- **[Gemma](https://huggingface.co/google/gemma)** — Open-source models by Google
+- **[FastAPI](https://fastapi.tiangolo.com)** — Python web framework
+- **[Web Speech API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Speech_API)** — Browser speech APIs
+
 **Questions?** See `OFFLINE_MODE.md` for complete documentation.

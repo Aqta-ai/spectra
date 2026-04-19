@@ -332,6 +332,9 @@ Current Ollama implementation is **text-only**:
 3. **GPU optimization:** CUDA, ROCm, Metal quantized models
 4. **Multi-modal:** Integrate vision models for screenshot analysis
 
-## Further Reading
+## References & Credits
 
-For more information about Spectra's offline capabilities and other features, see the main documentation in the repository.
+- **[Ollama](https://github.com/ollama/ollama)** — Local LLM inference engine
+- **[Gemma Models](https://huggingface.co/google/gemma)** — Google's open-source language models
+- **[Web Speech API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Speech_API)** — Browser native speech recognition and synthesis
+- **[FastAPI](https://fastapi.tiangolo.com)** — Modern Python web framework for building APIs
