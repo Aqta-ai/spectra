@@ -95,15 +95,16 @@ npm run dev
 
 ## Usage
 
-### Current: Text-Only Mode
+### Current: Text Mode with Browser TTS
 
-Offline mode (Ollama) currently operates in **text-only mode**:
+Offline mode (Ollama) currently operates in **text mode with browser text-to-speech**:
 - ✓ Type messages and get text responses
+- ✓ Browser TTS reads responses aloud (uses system voices)
 - ✓ Full browser control and tool execution
-- ✗ No voice input/output (Phase 2 feature)
-- ✗ No audio streaming
+- ✗ Voice input not yet supported (Phase 2 feature)
+- ✗ TTS quality is functional but robotic (Phase 2 will add high-quality local TTS via Piper)
 
-**For voice interaction, use Cloud mode (Gemini Live)**. Voice support for offline mode is planned for a future release.
+**For voice input and premium audio quality, use Cloud mode (Gemini Live)**. Natural voice support for offline mode is planned for Phase 2.
 
 ### Switching Providers
 
@@ -335,12 +336,18 @@ Current Ollama implementation is **text-only**:
 
 **Workaround:** Use browser's Web Speech API for STT/TTS on the frontend while keeping backend text-only.
 
-## Future Enhancements
+## Phase 2 Enhancements (Planned)
 
-1. **Full-duplex audio:** Add Whisper STT + local TTS (Piper/Coqui)
+1. **Natural voice I/O:** 
+   - Add Whisper for voice input (browser-based speech recognition)
+   - Replace browser TTS with Piper for high-quality local speech synthesis
+   - Result: Full voice conversation with natural-sounding responses
+   
 2. **Faster models:** Support phi2, mistral, neural-chat (streaming trade-offs)
+
 3. **GPU optimization:** CUDA, ROCm, Metal quantized models
-4. **Multi-modal:** Integrate vision models for screenshot analysis
+
+4. **Multi-modal:** Integrate vision models for screenshot analysis (requires returning to text-based describe_screen)
 
 ## References & Credits
 

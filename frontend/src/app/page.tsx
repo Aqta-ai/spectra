@@ -247,8 +247,23 @@ export default function Home() {
       window.speechSynthesis.cancel();
 
       const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = 1.0;
-      utterance.pitch = 1.0;
+
+      // Try to find a natural-sounding voice
+      const voices = window.speechSynthesis.getVoices();
+      if (voices.length > 0) {
+        // Prefer Google or high-quality voices; macOS has better voices than Linux
+        const preferredVoice = voices.find(v =>
+          v.name.includes('Google') ||
+          v.lang.startsWith('en-US') ||
+          v.name.includes('Samantha') ||  // macOS
+          v.name.includes('Victoria')     // macOS/Windows
+        ) || voices[0];
+        utterance.voice = preferredVoice;
+      }
+
+      // Natural speech parameters (slightly slower, higher pitch for clarity)
+      utterance.rate = 0.95;   // Slightly slower for clarity
+      utterance.pitch = 1.1;   // Slightly higher for presence
       utterance.volume = 1.0;
 
       utterance.onstart = () => {

@@ -74,14 +74,15 @@ curl -X POST http://localhost:8000/api/switch-provider \
 
 ## What to Expect
 
-### Ollama Mode (Local) - TEXT ONLY
+### Ollama Mode (Local) - TEXT + BROWSER TTS
 - **Speed:** 2-4 seconds to first response
-- **Input:** Type messages (no voice yet)
-- **Output:** Text responses only (no audio yet)
+- **Input:** Type messages (voice input planned for Phase 2)
+- **Output:** Text responses with browser text-to-speech
+- **TTS Quality:** Uses system voices (functional but robotic; local high-quality TTS planned for Phase 2)
 - **Internet:** None required
 - **API Key:** Not needed
 - **Privacy:** All processing local
-- **Note:** Voice support is planned for Phase 2
+- **Note:** Phase 2 will add Whisper STT + Piper TTS for natural voice I/O
 
 ### Gemini Mode (Cloud) - FULL FEATURES
 - **Speed:** 1-2 seconds to first response
