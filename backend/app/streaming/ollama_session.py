@@ -157,8 +157,8 @@ class OllamaStreamingSession:
             logger.debug(f"Processing message type: {msg_type}")
 
             if msg_type == "text":
-                # User sent text message
-                text = message_data.get("text", "").strip()
+                # User sent text message (frontend sends {"type": "text", "data": "..."})
+                text = message_data.get("data", "").strip()
                 if text:
                     logger.info(f"User message: {text[:100]}")
                     await self._handle_text_message(text)
