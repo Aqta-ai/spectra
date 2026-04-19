@@ -659,14 +659,18 @@ export default function Home() {
   // Keyboard shortcuts: use e.code (KeyQ, KeyW) so physical keys work on any keyboard layout
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Q and W are reserved — always handle them, even when focus is in an input
+      // In offline mode (text-only), don't intercept W in text inputs
+      const isTextInput = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
+
+      // Q and W are reserved — but in offline mode with text input, let typing work
       if (e.code === "KeyQ") {
         e.preventDefault();
         e.stopPropagation();
         handleToggle();
         return;
       }
-      if (e.code === "KeyW") {
+      if (e.code === "KeyW" && !offlineMode) {
+        // W hotkey only works in Cloud (Gemini) mode, not offline text mode
         e.preventDefault();
         e.stopPropagation();
         handleShareScreen();
@@ -678,11 +682,11 @@ export default function Home() {
         handleStop();
         return;
       }
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (isTextInput) return;
     };
     document.addEventListener("keydown", handleKeyDown, true);
     return () => document.removeEventListener("keydown", handleKeyDown, true);
-  }, [isActive, handleToggle, handleShareScreen, handleStop]);
+  }, [isActive, offlineMode, handleToggle, handleShareScreen, handleStop]);
 
   // Orb state
   const orbState = isSpeaking ? "speaking" : isListening && isActive ? "listening" : "idle";
