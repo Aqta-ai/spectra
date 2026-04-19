@@ -708,7 +708,7 @@ export default function Home() {
               )}
             </div>
 
-            {/* Provider toggle - Toggle switch */}
+            {/* Provider toggle - Clean line icon button */}
             <button
               onClick={async () => {
                 const newProvider = provider === 'gemini' ? 'ollama' : 'gemini';
@@ -732,24 +732,22 @@ export default function Home() {
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '8px',
-                padding: '6px 12px',
+                gap: '6px',
+                padding: '6px 11px',
                 fontSize: '12px',
                 fontWeight: '600',
-                backgroundColor: provider === 'ollama' ? '#10b981' : '#3b82f6',
+                backgroundColor: provider === 'ollama' ? '#059669' : '#0284c7',
                 color: 'white',
-                border: 'none',
-                borderRadius: '20px',
+                border: '1px solid rgba(255,255,255,0.3)',
+                borderRadius: '5px',
                 cursor: 'pointer',
-                transition: 'all 0.3s ease',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                transition: 'all 0.2s ease',
               }}
-              title={`Currently: ${provider === 'gemini' ? 'Cloud' : 'Local'}`}
+              title={`Click to switch to ${provider === 'gemini' ? 'Local' : 'Cloud'}`}
             >
-              <span style={{ fontSize: '16px' }}>
-                {provider === 'gemini' ? '☁️' : '🖥️'}
+              <span style={{ fontWeight: '700', fontSize: '11px', letterSpacing: '0.5px' }}>
+                {provider === 'gemini' ? '⊕ CLOUD' : '■ LOCAL'}
               </span>
-              <span>{provider === 'gemini' ? 'Cloud' : 'Local'}</span>
             </button>
 
             <a
