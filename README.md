@@ -16,7 +16,7 @@ A real-time AI agent that sees your screen and responds to your voice. It clicks
 [![Python](https://img.shields.io/badge/PYTHON-FastAPI-3B82F6?style=for-the-badge&logo=python&logoColor=white)](https://fastapi.tiangolo.com)
 [![Next.js](https://img.shields.io/badge/NEXT.JS-14-111827?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org)
 
-**[Quick Start](#-quick-start)** | **[Architecture](#-architecture)** | **[Accessibility](ACCESSIBILITY.md)** | **[Blind User Test Script](docs/BLIND_USER_MANUAL_TEST_SCRIPT.md)** | **[Troubleshooting](#-troubleshooting)**
+**[Quick Start](#-quick-start)** | **[Architecture](#-architecture)** | **[Offline Mode](QUICK_START_OFFLINE.md)** | **[Accessibility](ACCESSIBILITY.md)** | **[Troubleshooting](#-troubleshooting)**
 
 ---
 
@@ -314,6 +314,36 @@ npm run dev
 ```
 
 Install the Chrome extension (see [Extension Setup](#spectra-bridge-chrome-extension) below).
+
+### Offline Mode (Gemma 4)
+
+Run Spectra completely offline using [Ollama](https://ollama.com) and Gemma 4:
+
+```bash
+# 1. Install Ollama and download Gemma 4
+ollama pull gemma4
+
+# 2. Start Ollama server
+ollama serve
+
+# 3. Set provider to offline (Terminal 2)
+export SPECTRA_PROVIDER=ollama
+
+# 4. Run backend as usual
+cd backend && uvicorn app.main:app --port 8000
+
+# 5. Run frontend (Terminal 3)
+cd frontend && npm run dev
+```
+
+Open http://localhost:3000, look for the **"Local"** button in the header to switch between Cloud (Gemini) and Local (Ollama) modes. See [QUICK_START_OFFLINE.md](QUICK_START_OFFLINE.md) for details.
+
+**Features:**
+- ✓ No internet required
+- ✓ No API keys needed
+- ✓ All browser control tools work identically
+- ✓ 2-4 second latency (vs 1-2s for cloud)
+- ✓ Run on 12GB+ RAM hardware
 
 ---
 
