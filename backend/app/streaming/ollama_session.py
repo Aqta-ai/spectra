@@ -175,8 +175,12 @@ class OllamaStreamingSession:
                 result = message_data.get("result", "")
                 await self._handle_action_result(action_name, result)
 
+            elif msg_type in ("pong", "extension_status", "heartbeat"):
+                # Ignore heartbeat and system messages from client
+                logger.debug(f"Received system message: {msg_type}")
+
             else:
-                logger.warning(
+                logger.debug(
                     f"Unknown message type: {msg_type}"
                 )
 

@@ -95,6 +95,16 @@ npm run dev
 
 ## Usage
 
+### Current: Text-Only Mode
+
+Offline mode (Ollama) currently operates in **text-only mode**:
+- ✓ Type messages and get text responses
+- ✓ Full browser control and tool execution
+- ✗ No voice input/output (Phase 2 feature)
+- ✗ No audio streaming
+
+**For voice interaction, use Cloud mode (Gemini Live)**. Voice support for offline mode is planned for a future release.
+
 ### Switching Providers
 
 **Via Frontend UI:**
