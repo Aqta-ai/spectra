@@ -708,10 +708,9 @@ export default function Home() {
               )}
             </div>
 
-            {/* Provider toggle - ONE CLICK */}
+            {/* Provider toggle - Toggle switch */}
             <button
               onClick={async () => {
-                setStatusText('Switching provider...');
                 const newProvider = provider === 'gemini' ? 'ollama' : 'gemini';
                 try {
                   const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
@@ -721,28 +720,36 @@ export default function Home() {
                     body: JSON.stringify({ new_provider: newProvider }),
                   });
                   if (res.ok) {
-                    setStatusText(`Switched to ${newProvider}. Reloading...`);
+                    setStatusText('Switching...');
                     setTimeout(() => window.location.reload(), 800);
                   } else {
                     setStatusText('Failed to switch');
                   }
                 } catch (e) {
                   console.error(e);
-                  setStatusText('Error switching provider');
                 }
               }}
               style={{
-                padding: '8px 14px',
-                fontSize: '13px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '6px 12px',
+                fontSize: '12px',
                 fontWeight: '600',
-                backgroundColor: provider === 'ollama' ? '#8b5cf6' : '#0ea5e9',
+                backgroundColor: provider === 'ollama' ? '#10b981' : '#3b82f6',
                 color: 'white',
                 border: 'none',
-                borderRadius: '6px',
+                borderRadius: '20px',
                 cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
               }}
+              title={`Currently: ${provider === 'gemini' ? 'Cloud' : 'Local'}`}
             >
-              {provider === 'gemini' ? '→ Ollama' : '→ Gemini'}
+              <span style={{ fontSize: '16px' }}>
+                {provider === 'gemini' ? '☁️' : '🖥️'}
+              </span>
+              <span>{provider === 'gemini' ? 'Cloud' : 'Local'}</span>
             </button>
 
             <a
