@@ -146,7 +146,7 @@ export function useSpectraSocket(options: SpectraSocketOptions) {
   }, [options.audioDuckingEnabled, detectScreenReader, applyAudioDucking]);
 
   const getWsUrl = useCallback(() => {
-    const base = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8080/ws";
+    const base = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000/ws";
     
     // Get persistent session ID for this browser tab
     const sessionId = getSessionId();
