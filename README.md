@@ -619,4 +619,4 @@ Apache Licence 2.0, see [LICENSE](LICENSE).
 
 **Built by [Anya Chueayen](https://github.com/anyapages)** · Aqta Technologies Ltd, Dublin, Ireland
 
-[Spectra Repository](https://github.com/Aqta-ai/spectra) · [Apache Licence 2.0](LICENSE)
+[Apache Licence 2.0](LICENSE)
