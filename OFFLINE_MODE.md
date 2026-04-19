@@ -332,9 +332,6 @@ Current Ollama implementation is **text-only**:
 3. **GPU optimization:** CUDA, ROCm, Metal quantized models
 4. **Multi-modal:** Integrate vision models for screenshot analysis
 
-## See Also
+## Further Reading
 
-- [Ollama Documentation](https://github.com/ollama/ollama)
-- [Gemma 2 / 4 Model Cards](https://huggingface.co/google/gemma)
-- [Web Speech API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Speech_API)
-- [FastAPI WebSocket Documentation](https://fastapi.tiangolo.com/advanced/websockets/)
+For more information about Spectra's offline capabilities and other features, see the main documentation in the repository.
