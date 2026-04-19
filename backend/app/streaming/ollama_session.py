@@ -303,7 +303,7 @@ class OllamaStreamingSession:
     async def _send_text(self, text: str):
         """Send text response to client."""
         try:
-            await self.websocket.send_json({"type": "text", "text": text})
+            await self.websocket.send_json({"type": "text", "data": text})
         except Exception as e:
             logger.error(f"Failed to send text: {e}")
             raise
