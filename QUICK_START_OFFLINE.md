@@ -44,7 +44,8 @@ npm run dev
 - Open http://localhost:3000 in browser
 - Look for "Local" button in top-right (shows offline mode is available)
 - Click button to switch between "Cloud" (Gemini) and "Local" (Ollama)
-- Type a message to test
+- **Type a message to test** (text-only mode, no voice yet)
+- See response from Gemma 4 in 2-4 seconds
 
 ## Testing Checklist
 
@@ -73,14 +74,19 @@ curl -X POST http://localhost:8000/api/switch-provider \
 
 ## What to Expect
 
-### Ollama Mode (Local)
+### Ollama Mode (Local) - TEXT ONLY
 - **Speed:** 2-4 seconds to first response
+- **Input:** Type messages (no voice yet)
+- **Output:** Text responses only (no audio yet)
 - **Internet:** None required
 - **API Key:** Not needed
 - **Privacy:** All processing local
+- **Note:** Voice support is planned for Phase 2
 
-### Gemini Mode (Cloud)
+### Gemini Mode (Cloud) - FULL FEATURES
 - **Speed:** 1-2 seconds to first response
+- **Input:** Voice or text
+- **Output:** Voice and text
 - **Internet:** Required
 - **API Key:** Needed (set via env var)
 - **Privacy:** Requests sent to Google
@@ -94,6 +100,8 @@ curl -X POST http://localhost:8000/api/switch-provider \
 | "Out of memory" | Your system needs 12GB+ RAM. Close other apps. |
 | "Provider toggle doesn't work" | Restart backend: `python -m uvicorn app.main:app --port 8000` |
 | "Slow responses from Ollama" | Normal on CPU-only. 2-4s is expected. |
+| "No voice output" | Offline mode is text-only. Use Cloud mode for voice. |
+| "Can't use microphone" | Offline mode accepts typed text. Voice input is Phase 2. |
 
 ## Example Conversation
 
