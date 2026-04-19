@@ -153,6 +153,7 @@ export default function Home() {
   const [extensionReady, setExtensionReady] = useState(false);
   const [showExtensionBanner, setShowExtensionBanner] = useState(false);
   const [provider, setProvider] = useState<string>("gemini");
+  const [offlineMode, setOfflineMode] = useState(false);
 
   // Typing effect for demo commands
   const DEMO_COMMANDS = [
@@ -238,6 +239,36 @@ export default function Home() {
     requestAnimationFrame(() => setPoliteAnnouncement(msg));
   }, []);
 
+  const speakText = useCallback((text: string) => {
+    if (!offlineMode || !text.trim()) return;
+
+    try {
+      // Cancel any pending speech
+      window.speechSynthesis.cancel();
+
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 1.0;
+      utterance.pitch = 1.0;
+      utterance.volume = 1.0;
+
+      utterance.onstart = () => {
+        setIsSpeaking(true);
+      };
+
+      utterance.onend = () => {
+        setIsSpeaking(false);
+      };
+
+      utterance.onerror = () => {
+        setIsSpeaking(false);
+      };
+
+      window.speechSynthesis.speak(utterance);
+    } catch (err) {
+      console.error('[Spectra] TTS error:', err);
+    }
+  }, [offlineMode]);
+
   // Fetch provider info from backend
   useEffect(() => {
     const fetchProvider = async () => {
@@ -247,6 +278,7 @@ export default function Home() {
         if (res.ok) {
           const info: SystemInfo = await res.json();
           setProvider(info.provider || 'gemini');
+          setOfflineMode(info.offline_mode ?? false);
         }
       } catch (err) {
         console.debug('Could not fetch provider info:', err);
@@ -323,6 +355,9 @@ export default function Home() {
       if (cleaned) {
         console.log("[Spectra] Got response text:", cleaned.substring(0, 50));
         setCurrentResponse((prev) => prev + cleaned);
+        if (offlineMode) {
+          speakText(cleaned);
+        }
       }
       setIsThinking(false);
     },
