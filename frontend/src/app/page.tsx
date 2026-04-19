@@ -599,6 +599,12 @@ export default function Home() {
   }, [isActive, handleStart, handleStop]);
 
   const handleShareScreen = useCallback(async () => {
+    // Offline mode doesn't support screen sharing (text-only)
+    if (offlineMode) {
+      announcePolite("Screen sharing is not available in offline mode");
+      return;
+    }
+
     if (!isActive) await handleStart();
     if (isScreenSharing) {
       stopCapture();
@@ -610,7 +616,7 @@ export default function Home() {
         markScreenShared();
       } catch { /* denied */ }
     }
-  }, [isActive, isScreenSharing, handleStart, startCapture, stopCapture, markScreenShared]);
+  }, [isActive, isScreenSharing, offlineMode, handleStart, startCapture, stopCapture, markScreenShared, announcePolite]);
 
   const handleSendMessage = useCallback((text: string) => {
     if (!text.trim()) return;
@@ -1198,13 +1204,16 @@ export default function Home() {
               <div className="flex items-center gap-2 flex-shrink-0">
                 <button
                   onClick={handleShareScreen}
+                  disabled={offlineMode}
                   className={`p-2 rounded-lg text-xs transition-all border ${
-                    isScreenSharing
-                      ? "bg-green-500/20 border-green-500/40 text-green-300"
-                      : "bg-white/5 border-white/10 text-white/50 hover:text-white/80"
+                    offlineMode
+                      ? "opacity-40 cursor-not-allowed bg-white/5 border-white/10 text-white/30"
+                      : isScreenSharing
+                      ? "bg-green-500/20 border-green-500/40 text-green-300 hover:bg-green-500/30"
+                      : "bg-white/5 border-white/10 text-white/50 hover:text-white/80 hover:bg-white/10"
                   }`}
-                  aria-label={isScreenSharing ? "Stop screen share (W)" : "Share screen (W)"}
-                  title={isScreenSharing ? "Stop sharing (W)" : "Share screen (W)"}
+                  aria-label={offlineMode ? "Screen share unavailable (offline mode text-only)" : (isScreenSharing ? "Stop screen share (W)" : "Share screen (W)")}
+                  title={offlineMode ? "Screen share unavailable in offline mode (text-only)" : (isScreenSharing ? "Stop sharing (W)" : "Share screen (W)")}
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
