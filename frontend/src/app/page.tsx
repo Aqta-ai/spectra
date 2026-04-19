@@ -729,24 +729,15 @@ export default function Home() {
                   console.error(e);
                 }
               }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '6px 11px',
-                fontSize: '12px',
-                fontWeight: '600',
-                backgroundColor: provider === 'ollama' ? '#059669' : '#0284c7',
-                color: 'white',
-                border: '1px solid rgba(255,255,255,0.3)',
-                borderRadius: '5px',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-              }}
+              className={`flex items-center gap-1.5 text-xs px-2 py-1 rounded transition-all cursor-pointer ${
+                provider === 'gemini'
+                  ? 'bg-white/10 text-white/80 hover:bg-white/15'
+                  : 'bg-white/10 text-white/80 hover:bg-white/15'
+              }`}
               title={`Click to switch to ${provider === 'gemini' ? 'Local' : 'Cloud'}`}
             >
-              <span style={{ fontWeight: '700', fontSize: '11px', letterSpacing: '0.5px' }}>
-                {provider === 'gemini' ? '⊕ CLOUD' : '■ LOCAL'}
+              <span className="font-medium text-xs">
+                {provider === 'gemini' ? 'Cloud' : 'Local'}
               </span>
             </button>
 
