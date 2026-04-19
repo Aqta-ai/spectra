@@ -240,14 +240,20 @@ class OllamaStreamingSession:
             self.action_in_progress = True
             response_text = ""
             logger.info("Sending to Ollama...")
+            logger.debug(f"System instruction: {OLLAMA_SYSTEM_INSTRUCTION[:100]}...")
+            logger.debug(f"Messages: {self.messages}")
 
             # Stream response from Ollama
-            async for chunk in self.ollama_client.generate_stream(
-                system=OLLAMA_SYSTEM_INSTRUCTION,
-                messages=self.messages,
-            ):
-                response_text += chunk
-                # Don't send partial chunks yet — accumulate for parsing
+            try:
+                async for chunk in self.ollama_client.generate_stream(
+                    system=OLLAMA_SYSTEM_INSTRUCTION,
+                    messages=self.messages,
+                ):
+                    response_text += chunk
+                    # Don't send partial chunks yet — accumulate for parsing
+            except Exception as e:
+                logger.error(f"Exception during streaming: {e}", exc_info=True)
+                raise
 
             logger.info(f"Received response from Ollama ({len(response_text)} chars)")
 
