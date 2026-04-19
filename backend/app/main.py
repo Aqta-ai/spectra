@@ -235,9 +235,16 @@ async def websocket_endpoint(websocket: WebSocket):
     # Use session_id as user_id for session tracking
     user_id = session_id
 
-    # Create Gemini Live session
-    session = SpectraStreamingSession(websocket, user_id=user_id, session_id=session_id)
-    logger.info("Created Gemini session: %s (user: %s)", session_id, user_id)
+    # Route to appropriate provider based on SPECTRA_PROVIDER environment variable
+    provider = os.getenv("SPECTRA_PROVIDER", "gemini").lower()
+
+    if provider in ("ollama", "local", "offline"):
+        from app.streaming.ollama_session import OllamaStreamingSession
+        session = OllamaStreamingSession(websocket, user_id=user_id, session_id=session_id)
+        logger.info("Created Ollama session: %s (user: %s)", session_id, user_id)
+    else:
+        session = SpectraStreamingSession(websocket, user_id=user_id, session_id=session_id)
+        logger.info("Created Gemini session: %s (user: %s)", session_id, user_id)
 
     async with _session_lock:
         _active_session_objects[session_id] = session
