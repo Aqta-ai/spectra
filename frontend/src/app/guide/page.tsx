@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "Guide , Spectra",
+  title: "Guide | Spectra",
   description: "Learn how to use Spectra: voice commands, keyboard shortcuts, and tips.",
 };
 

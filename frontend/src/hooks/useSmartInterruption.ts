@@ -35,7 +35,6 @@ export function useSmartInterruption({
     }
 
     lastInterruptionRef.current = now;
-    console.log('[SmartInterruption] User started speaking, interrupting...');
     
     stopAudioPlayback();
     onInterruption();

@@ -368,7 +368,6 @@ export default function Home() {
     onText: (text) => {
       const cleaned = stripThinking(text);
       if (cleaned) {
-        console.log("[Spectra] Got response text:", cleaned.substring(0, 50));
         setCurrentResponse((prev) => prev + cleaned);
         if (offlineMode) {
           speakText(cleaned);
@@ -471,7 +470,6 @@ export default function Home() {
       if (currentResponse.trim()) {
         const finalText = stripThinking(currentResponse);
         if (finalText.trim()) {
-          console.log("[Spectra] Turn complete, final response:", finalText.substring(0, 50));
           setMessages((prev) => {
             const next = [...prev, { role: "assistant" as const, content: finalText, timestamp: Date.now() }];
             return next.length > MAX_MESSAGES ? next.slice(-MAX_MESSAGES) : next;
@@ -479,8 +477,6 @@ export default function Home() {
           announcePolite(finalText);
         }
         setCurrentResponse("");
-      } else {
-        console.log("[Spectra] No response text to announce");
       }
       setIsThinking(false);
       setStatusText(isActive ? "Listening…" : "Press Q or say “Hey Spectra”");
@@ -662,21 +658,21 @@ export default function Home() {
       // In offline mode (text-only), don't intercept W in text inputs
       const isTextInput = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
 
-      // Q and W are reserved — but in offline mode with text input, let typing work
-      if (e.code === "KeyQ") {
+      // Q and W are reserved — but never hijack them when the user is typing
+      if (e.code === "KeyQ" && !isTextInput) {
         e.preventDefault();
         e.stopPropagation();
         handleToggle();
         return;
       }
-      if (e.code === "KeyW" && !offlineMode) {
+      if (e.code === "KeyW" && !offlineMode && !isTextInput) {
         // W hotkey only works in Cloud (Gemini) mode, not offline text mode
         e.preventDefault();
         e.stopPropagation();
         handleShareScreen();
         return;
       }
-      if (e.key.toLowerCase() === "escape" && isActive) {
+      if (e.code === "Escape" && isActive) {
         e.preventDefault();
         e.stopPropagation();
         handleStop();
@@ -816,7 +812,7 @@ export default function Home() {
             </a>
 
             <a
-              href="/guide"
+              href="/overlay"
               className="text-xs text-white/60 hover:text-white/80 transition-colors hidden sm:block"
             >
               Overlay
@@ -1018,7 +1014,7 @@ export default function Home() {
                   {[
                     { value: "99.2%", label: "Test pass rate", sub: "442 tests" },
                     { value: "<1s", label: "Voice response", sub: "Real-time streaming" },
-                    { value: "24", label: "Languages", sub: "Native audio capabilities" },
+                    { value: "97", label: "Languages", sub: "Gemini Live native audio" },
                     { value: "Zero", label: "Data stored", sub: "Privacy by design", showLock: true },
                   ].map(({ value, label, sub, showLock }) => (
                     <div key={label} className="space-y-1">
@@ -1058,7 +1054,11 @@ export default function Home() {
             <div className="w-full stagger-4">
               <div id="features" className="text-center mb-8">
                 <h2 className="text-xl sm:text-2xl font-bold text-white">Built for people, not just browsers</h2>
-                <p className="text-sm text-white/50 mt-1">2.2 billion people worldwide have a vision impairment. Spectra closes the gap.</p>
+                <p className="text-sm text-white/50 mt-1">
+                  2.2 billion people worldwide live with a vision impairment
+                  <a href="https://www.who.int/news-room/fact-sheets/detail/blindness-and-visual-impairment" target="_blank" rel="noopener noreferrer" className="text-white/40 hover:text-white/70 underline underline-offset-2 ml-1"><sup>WHO</sup></a>.
+                  Spectra closes the gap.
+                </p>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {[
@@ -1102,9 +1102,9 @@ export default function Home() {
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                 {[
                   { step: "1", title: "Press Q", desc: "Connect to Spectra instantly", icon: <svg className="w-6 h-6 mx-auto text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg> },
-                  { step: "2", title: "Press W", desc: "Share your active browser tab", icon: <svg className="w-6 h-6 mx-auto text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg> },
-                  { step: "3", title: "Talk", desc: "Speak naturally in any language", icon: <svg className="w-6 h-6 mx-auto text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4M12 3a4 4 0 014 4v4a4 4 0 01-8 0V7a4 4 0 014-4z" /></svg> },
-                  { step: "4", title: "Done", desc: "Spectra clicks, types, and reads texts", icon: <svg className="w-6 h-6 mx-auto text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 13l4 4L19 7" /></svg> },
+                  { step: "2", title: "Press W", desc: "Share your browser tab", icon: <svg className="w-6 h-6 mx-auto text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg> },
+                  { step: "3", title: "Speak", desc: "Say what you want, in any language", icon: <svg className="w-6 h-6 mx-auto text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4M12 3a4 4 0 014 4v4a4 4 0 01-8 0V7a4 4 0 014-4z" /></svg> },
+                  { step: "4", title: "Watch", desc: "Spectra clicks, types, and reads", icon: <svg className="w-6 h-6 mx-auto text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 13l4 4L19 7" /></svg> },
                 ].map(({ step, title, desc, icon }) => (
                   <div key={step} className="relative glass rounded-2xl border border-white/8 p-5 text-center space-y-2">
                     <div aria-hidden="true">{icon}</div>
@@ -1365,7 +1365,7 @@ export default function Home() {
                 <div className="flex justify-center">
                   <div className="px-4 py-2 bg-amber-500/10 border border-amber-500/20 rounded-full text-xs text-amber-400 flex items-center gap-2">
                     <div className="w-1.5 h-1.5 bg-amber-400 rounded-full animate-pulse" />
-                    {pendingMessages} message{pendingMessages > 1 ? "s" : ""} queued, waiting for connection
+                    Not connected — message not sent
                   </div>
                 </div>
               )}
@@ -1389,7 +1389,6 @@ export default function Home() {
                       e.preventDefault();
                       const text = inputRef.current.value.trim();
                       if (text && isConnected) {
-                        console.log("[Spectra] User typed:", text);
                         sendText(text);
                         inputRef.current.value = "";
                       }

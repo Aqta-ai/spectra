@@ -216,7 +216,6 @@ export function useSpectraSocket(options: SpectraSocketOptions) {
         // T2: first audio chunk back from Gemini — log transcript→audio gap
         if (!firstChunkLoggedRef.current && latencyT1Ref.current > 0) {
           const ms = Math.round(performance.now() - latencyT1Ref.current);
-          console.log(`[Spectra Latency] transcript→first_audio: ${ms}ms`);
           // Accumulate samples on window for easy console inspection
           if (typeof window !== 'undefined') {
             (window as any).__spectraLatency = (window as any).__spectraLatency ?? [];
@@ -225,7 +224,6 @@ export function useSpectraSocket(options: SpectraSocketOptions) {
             if (samples.length >= 3) {
               const sorted = [...samples].sort((a, b) => a - b);
               const median = sorted[Math.floor(sorted.length / 2)];
-              console.log(`[Spectra Latency] median over ${samples.length} samples: ${median}ms  (all: ${samples.join(', ')}ms)`);
             }
           }
           firstChunkLoggedRef.current = true;
@@ -465,7 +463,6 @@ export function useSpectraSocket(options: SpectraSocketOptions) {
 
     // NOTE: We intentionally DO NOT clear sessionIdRef.current here
     // This allows reconnection to reuse the same session_id
-    console.log(`[SpectraSocket] Disconnected but preserving session_id: ${sessionIdRef.current}`);
   }, []);
 
   const safeSend = useCallback((data: string) => {

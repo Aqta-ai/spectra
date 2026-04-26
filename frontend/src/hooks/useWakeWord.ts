@@ -61,7 +61,6 @@ export function useWakeWord({
 
       recognition.onstart = () => {
         setIsListening(true);
-        console.log('[WakeWord] Listening for wake word...');
       };
 
       recognition.onresult = (event: any) => {
@@ -77,7 +76,6 @@ export function useWakeWord({
             const confidence = result[j].confidence;
 
             if (confidence >= sensitivity && containsWakeWord(alternative)) {
-              console.log('[WakeWord] Detected:', alternative, 'confidence:', confidence);
               isProcessingRef.current = true;
               setLastDetection(new Date());
               onWakeWordDetected();

@@ -105,7 +105,6 @@ export function useVoiceActivation({
         for (const wakeWord of wakeWords) {
           const escaped = wakeWord.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
           if (new RegExp(`\\b${escaped}\\b`).test(transcript)) {
-            console.log(`[WakeWord] Detected: "${transcript}"`);
             onActivateRef.current();
             return;
           }

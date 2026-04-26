@@ -103,9 +103,9 @@ export function useDictation({
       if (event.error === "not-allowed") {
         stop();
       } else if (event.error === "no-speech") {
-        console.log("No speech detected");
+        // silence — expected when user pauses
       } else if (event.error === "audio-capture") {
-        console.log("No microphone found");
+        // no microphone available
       }
     };
 
